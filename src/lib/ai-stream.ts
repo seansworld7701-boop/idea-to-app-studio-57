@@ -1,7 +1,7 @@
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
 
 export type Msg = { role: "user" | "assistant"; content: string };
-export type ChatMode = "all" | "vibe-code" | "chat";
+export type ChatMode = "all" | "vibe-code" | "chat" | "explain" | "review" | "debug";
 
 export async function streamChat({
   messages,
@@ -128,6 +128,9 @@ export function parseAIResponse(content: string): {
       rs: "rust", go: "go", sql: "sql", json: "json",
       cpp: "cpp", c: "c", rb: "ruby", php: "php",
       swift: "swift", kt: "kotlin", sh: "bash",
+      md: "markdown", yaml: "yaml", yml: "yaml",
+      xml: "xml", scss: "scss", less: "less",
+      dart: "dart", lua: "lua", r: "r",
     };
     files.push({ name, content: fileContent, language: langMap[ext] || ext });
   }
