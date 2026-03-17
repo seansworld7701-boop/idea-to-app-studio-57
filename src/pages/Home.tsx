@@ -75,7 +75,7 @@ const HomePage = () => {
               transition={{ delay: 0.25 + i * 0.05 }}
               className="rounded-xl border border-border bg-surface-1 p-4 space-y-1.5 hover:border-foreground/10 transition-colors"
             >
-              <span className="text-lg">{f.emoji}</span>
+              <f.icon size={18} className="text-foreground/70" />
               <h3 className="text-sm font-medium text-foreground">{f.title}</h3>
               <p className="text-xs text-muted-foreground leading-relaxed">{f.desc}</p>
             </motion.div>
