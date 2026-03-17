@@ -1,6 +1,5 @@
 import { useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
-import { Download, Copy, Eye, EyeOff, Check, Lock } from "lucide-react";
+import { Download, Copy, Eye, Check, Lock } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import JSZip from "jszip";
 import { saveAs } from "file-saver";
@@ -15,18 +14,18 @@ interface ArtifactCardProps {
   title: string;
   files: ArtifactFile[];
   isLoggedIn: boolean;
+  onOpenPreview?: (html: string, title: string) => void;
 }
 
 function buildPreviewHtml(files: ArtifactFile[]): string {
   const html = files.find((f) => f.name.endsWith(".html"))?.content || "";
   const css = files.find((f) => f.name.endsWith(".css"))?.content || "";
   const js = files.find((f) => f.name.endsWith(".js"))?.content || "";
-  return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:system-ui,sans-serif;background:#0a0a0a;color:#fff;overflow:hidden}${css}</style></head><body>${html}<script>${js}<\/script></body></html>`;
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:system-ui,sans-serif;background:#0a0a0a;color:#fff}${css}</style></head><body>${html}<script>${js}<\/script></body></html>`;
 }
 
-const ArtifactCard = ({ title, files, isLoggedIn }: ArtifactCardProps) => {
+const ArtifactCard = ({ title, files, isLoggedIn, onOpenPreview }: ArtifactCardProps) => {
   const [activeTab, setActiveTab] = useState(0);
-  const [showPreview, setShowPreview] = useState(false);
   const [copied, setCopied] = useState(false);
   const navigate = useNavigate();
 
@@ -47,7 +46,7 @@ const ArtifactCard = ({ title, files, isLoggedIn }: ArtifactCardProps) => {
 
   const handlePreview = () => {
     if (!isLoggedIn) { navigate("/auth"); return; }
-    setShowPreview(!showPreview);
+    onOpenPreview?.(buildPreviewHtml(files), title);
   };
 
   const hasPreview = files.some((f) => f.name.endsWith(".html"));
@@ -77,13 +76,13 @@ const ArtifactCard = ({ title, files, isLoggedIn }: ArtifactCardProps) => {
             onClick={() => setActiveTab(idx)}
             className={`px-3 py-2 text-xs font-mono whitespace-nowrap transition-colors relative ${
               activeTab === idx
-                ? "text-foreground"
+                ? "text-foreground bg-surface-1"
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
             {file.name}
             {activeTab === idx && (
-              <motion.div layoutId="tab-indicator" className="absolute bottom-0 left-0 right-0 h-0.5 bg-foreground" />
+              <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-foreground" />
             )}
           </button>
         ))}
@@ -103,8 +102,8 @@ const ArtifactCard = ({ title, files, isLoggedIn }: ArtifactCardProps) => {
             onClick={handlePreview}
             className="flex items-center gap-1.5 flex-1 justify-center rounded-xl bg-foreground py-2.5 text-xs font-medium text-background active:scale-[0.97] transition-transform"
           >
-            {!isLoggedIn ? <Lock size={13} /> : showPreview ? <EyeOff size={14} /> : <Eye size={14} />}
-            {showPreview ? "Hide" : "Preview"}
+            {!isLoggedIn ? <Lock size={13} /> : <Eye size={14} />}
+            Preview
           </button>
         )}
         <button
@@ -122,26 +121,6 @@ const ArtifactCard = ({ title, files, isLoggedIn }: ArtifactCardProps) => {
           {copied ? "Copied" : "Copy"}
         </button>
       </div>
-
-      {/* Preview iframe */}
-      <AnimatePresence>
-        {showPreview && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 400, opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ type: "spring", damping: 25, stiffness: 300 }}
-            className="overflow-hidden border-t border-border"
-          >
-            <iframe
-              srcDoc={buildPreviewHtml(files)}
-              className="w-full h-[400px] bg-[#0a0a0a]"
-              sandbox="allow-scripts"
-              title="preview"
-            />
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   );
 };

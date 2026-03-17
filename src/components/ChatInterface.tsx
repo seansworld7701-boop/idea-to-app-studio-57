@@ -7,6 +7,7 @@ import ArtifactCard from "./ArtifactCard";
 import { streamChat, parseAIResponse, type Msg } from "@/lib/ai-stream";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
+import type { PreviewData } from "@/pages/Build";
 
 interface Message {
   id: string;
@@ -21,7 +22,11 @@ const SUGGESTION_PROMPTS = [
   "Write a Python sorting algorithm",
 ];
 
-const ChatInterface = () => {
+interface ChatInterfaceProps {
+  onOpenPreview?: (data: PreviewData) => void;
+}
+
+const ChatInterface = ({ onOpenPreview }: ChatInterfaceProps) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -36,11 +41,7 @@ const ChatInterface = () => {
     const msgText = (text || input).trim();
     if (!msgText || isLoading) return;
 
-    const userMsg: Message = {
-      id: crypto.randomUUID(),
-      role: "user",
-      content: msgText,
-    };
+    const userMsg: Message = { id: crypto.randomUUID(), role: "user", content: msgText };
     setMessages((prev) => [...prev, userMsg]);
     setInput("");
     setIsLoading(true);
@@ -64,17 +65,12 @@ const ChatInterface = () => {
                 i === prev.length - 1 ? { ...m, content: assistantSoFar } : m
               );
             }
-            return [
-              ...prev,
-              { id: "streaming", role: "assistant", content: assistantSoFar },
-            ];
+            return [...prev, { id: "streaming", role: "assistant", content: assistantSoFar }];
           });
         },
         onDone: () => {
           setMessages((prev) =>
-            prev.map((m) =>
-              m.id === "streaming" ? { ...m, id: crypto.randomUUID() } : m
-            )
+            prev.map((m) => (m.id === "streaming" ? { ...m, id: crypto.randomUUID() } : m))
           );
           setIsLoading(false);
         },
@@ -91,10 +87,11 @@ const ChatInterface = () => {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
-    }
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); }
+  };
+
+  const handleOpenPreview = (html: string, title: string) => {
+    onOpenPreview?.({ html, title });
   };
 
   const isEmpty = messages.length === 0;
@@ -107,17 +104,15 @@ const ChatInterface = () => {
         ) : (
           <div className="space-y-4 pt-4">
             {messages.map((msg) => (
-              <MessageBubble key={msg.id} message={msg} isLoggedIn={!!user} />
+              <MessageBubble key={msg.id} message={msg} isLoggedIn={!!user} onOpenPreview={handleOpenPreview} />
             ))}
-            {isLoading && messages[messages.length - 1]?.role !== "assistant" && (
-              <LoadingIndicator />
-            )}
+            {isLoading && messages[messages.length - 1]?.role !== "assistant" && <LoadingIndicator />}
             <div ref={messagesEndRef} />
           </div>
         )}
       </div>
 
-      {/* Input area */}
+      {/* Input */}
       <div className="border-t border-border bg-background/80 backdrop-blur-xl px-4 py-3 pb-20">
         <div className="flex items-end gap-2 rounded-2xl border border-border bg-surface-1 px-3 py-2 focus-within:ring-1 focus-within:ring-foreground/20 transition-all">
           <textarea
@@ -133,11 +128,7 @@ const ChatInterface = () => {
             disabled={!input.trim() || isLoading}
             className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-foreground text-background disabled:opacity-30 active:scale-95 transition-all"
           >
-            {isLoading ? (
-              <Loader2 size={16} className="animate-spin" />
-            ) : (
-              <Send size={16} />
-            )}
+            {isLoading ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
           </button>
         </div>
       </div>
@@ -153,10 +144,8 @@ const EmptyState = ({ onSuggestionClick }: { onSuggestionClick: (s: string) => v
       transition={{ duration: 0.5 }}
       className="flex flex-col items-center gap-4"
     >
-      <img src={logo} alt="Dust" className="w-14 h-14 drop-shadow-lg" />
-      <h1 className="text-xl font-bold tracking-tight text-foreground">
-        Build anything, in text.
-      </h1>
+      <img src={logo} alt="Dust" className="w-14 h-14 drop-shadow-lg invert" />
+      <h1 className="text-xl font-bold tracking-tight text-foreground">Build anything, in text.</h1>
       <p className="text-sm text-muted-foreground text-center max-w-[280px]">
         Type an idea and get a working project — or just say hi for a chat.
       </p>
@@ -178,14 +167,18 @@ const EmptyState = ({ onSuggestionClick }: { onSuggestionClick: (s: string) => v
   </div>
 );
 
-const MessageBubble = ({ message, isLoggedIn }: { message: Message; isLoggedIn: boolean }) => {
+const MessageBubble = ({
+  message,
+  isLoggedIn,
+  onOpenPreview,
+}: {
+  message: Message;
+  isLoggedIn: boolean;
+  onOpenPreview: (html: string, title: string) => void;
+}) => {
   if (message.role === "user") {
     return (
-      <motion.div
-        initial={{ opacity: 0, y: 4 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="flex flex-col items-end gap-2"
-      >
+      <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col items-end gap-2">
         <div className="max-w-[85%] rounded-2xl rounded-br-md bg-foreground px-4 py-2.5 text-sm text-background">
           {message.content}
         </div>
@@ -196,11 +189,7 @@ const MessageBubble = ({ message, isLoggedIn }: { message: Message; isLoggedIn: 
   const { explanation, files } = parseAIResponse(message.content);
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 4 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="space-y-3"
-    >
+    <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} className="space-y-3">
       {explanation && (
         <div className="text-sm text-muted-foreground leading-relaxed prose prose-invert prose-sm max-w-none">
           <ReactMarkdown>{explanation}</ReactMarkdown>
@@ -211,6 +200,7 @@ const MessageBubble = ({ message, isLoggedIn }: { message: Message; isLoggedIn: 
           title={files[0]?.name.replace(/\.\w+$/, "") || "Project"}
           files={files}
           isLoggedIn={isLoggedIn}
+          onOpenPreview={onOpenPreview}
         />
       )}
     </motion.div>
@@ -218,12 +208,8 @@ const MessageBubble = ({ message, isLoggedIn }: { message: Message; isLoggedIn: 
 };
 
 const LoadingIndicator = () => (
-  <motion.div
-    initial={{ opacity: 0 }}
-    animate={{ opacity: 1 }}
-    className="flex items-center gap-3 py-4"
-  >
-    <img src={logo} alt="" className="w-7 h-7 animate-pulse" />
+  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-center gap-3 py-4">
+    <img src={logo} alt="" className="w-7 h-7 animate-pulse invert" />
     <span className="text-sm text-muted-foreground">Thinking...</span>
   </motion.div>
 );
