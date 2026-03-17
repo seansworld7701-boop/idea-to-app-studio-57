@@ -10,13 +10,13 @@ import MessageBubble from "./chat/MessageBubble";
 import EmptyState from "./chat/EmptyState";
 import LoadingIndicator from "./chat/LoadingIndicator";
 
-const MODES: { id: ChatMode; label: string; icon: typeof Code2; desc: string }[] = [
-  { id: "all", label: "All", icon: Wand2, desc: "Code + conversation" },
-  { id: "vibe-code", label: "Vibe Code", icon: Code2, desc: "Code generation only" },
-  { id: "chat", label: "Chat", icon: MessageSquare, desc: "Conversation only" },
-  { id: "explain", label: "Explain", icon: BookOpen, desc: "Explain code in detail" },
-  { id: "review", label: "Review", icon: ShieldCheck, desc: "Code review & audit" },
-  { id: "debug", label: "Debug", icon: Bug, desc: "Find & fix bugs" },
+const MODES: { id: ChatMode; label: string; icon: typeof Braces; desc: string }[] = [
+  { id: "all", label: "All", icon: Sparkles, desc: "Code + conversation" },
+  { id: "vibe-code", label: "Vibe Code", icon: Braces, desc: "Code generation only" },
+  { id: "chat", label: "Chat", icon: MessageCircle, desc: "Conversation only" },
+  { id: "explain", label: "Explain", icon: FileSearch, desc: "Explain code in detail" },
+  { id: "review", label: "Review", icon: ScanEye, desc: "Code review & audit" },
+  { id: "debug", label: "Debug", icon: Wrench, desc: "Find & fix bugs" },
 ];
 
 interface Message {
