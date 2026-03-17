@@ -10,7 +10,7 @@ const navItems = [
   { path: "/account", icon: User, label: "Account" },
 ];
 
-const HIDDEN_ROUTES = ["/auth", "/reset-password"];
+const HIDDEN_ROUTES = ["/auth", "/auth/callback", "/reset-password"];
 const HIDDEN_PREFIXES = ["/shared/"];
 
 const BottomNav = () => {
