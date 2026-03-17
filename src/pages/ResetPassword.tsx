@@ -15,14 +15,12 @@ const ResetPassword = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // Check for recovery event
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event === "PASSWORD_RECOVERY") {
         setIsRecovery(true);
       }
     });
 
-    // Also check URL hash
     const hash = window.location.hash;
     if (hash.includes("type=recovery")) {
       setIsRecovery(true);
@@ -49,8 +47,9 @@ const ResetPassword = () => {
       setDone(true);
       toast({ title: "Password updated!" });
       setTimeout(() => navigate("/build", { replace: true }), 2000);
-    } catch (err: any) {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to update password";
+      toast({ title: "Error", description: message, variant: "destructive" });
     } finally {
       setLoading(false);
     }
