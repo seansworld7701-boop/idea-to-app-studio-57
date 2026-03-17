@@ -11,6 +11,12 @@ interface ProjectFile {
   language: string;
 }
 
+interface SharedProjectData {
+  title: string;
+  prompt: string | null;
+  files: ProjectFile[];
+}
+
 function parseFiles(files: Json | null): ProjectFile[] {
   if (!files || !Array.isArray(files)) return [];
   return files as unknown as ProjectFile[];
@@ -19,23 +25,27 @@ function parseFiles(files: Json | null): ProjectFile[] {
 const SharedProject = () => {
   const { shareId } = useParams();
   const navigate = useNavigate();
-  const [project, setProject] = useState<any>(null);
+  const [project, setProject] = useState<SharedProjectData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
+  const [notFound, setNotFound] = useState(false);
 
   useEffect(() => {
-    if (!shareId) { setError(true); setLoading(false); return; }
+    if (!shareId) { setNotFound(true); setLoading(false); return; }
     const load = async () => {
-      const { data, error: err } = await supabase
-        .from("projects")
-        .select("*")
-        .eq("share_id", shareId)
-        .eq("is_shared", true)
-        .single();
-      if (err || !data) {
-        setError(true);
-      } else {
-        setProject({ ...data, files: parseFiles(data.files) });
+      try {
+        const { data, error } = await supabase
+          .from("projects")
+          .select("title, prompt, files")
+          .eq("share_id", shareId)
+          .eq("is_shared", true)
+          .single();
+        if (error || !data) {
+          setNotFound(true);
+        } else {
+          setProject({ title: data.title, prompt: data.prompt, files: parseFiles(data.files) });
+        }
+      } catch {
+        setNotFound(true);
       }
       setLoading(false);
     };
@@ -50,7 +60,7 @@ const SharedProject = () => {
     );
   }
 
-  if (error || !project) {
+  if (notFound || !project) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen gap-4 px-5">
         <p className="text-sm text-muted-foreground">Project not found or not shared</p>

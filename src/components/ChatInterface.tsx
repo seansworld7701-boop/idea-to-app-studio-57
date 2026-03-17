@@ -97,7 +97,9 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
         }).select("id").single();
         if (data) setCurrentProjectId(data.id);
       }
-    } catch { /* silent */ }
+    } catch (e) {
+      console.error("Failed to save project:", e);
+    }
   }, [user, currentProjectId]);
 
   const handleSend = async (text?: string) => {
