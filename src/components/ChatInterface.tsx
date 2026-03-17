@@ -1,13 +1,14 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Send, Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
-import ReactMarkdown from "react-markdown";
-import logo from "@/assets/logo.png";
-import ArtifactCard from "./ArtifactCard";
 import { streamChat, parseAIResponse, type Msg } from "@/lib/ai-stream";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 import type { PreviewData } from "@/pages/Build";
+import MessageBubble from "./chat/MessageBubble";
+import EmptyState from "./chat/EmptyState";
+import LoadingIndicator from "./chat/LoadingIndicator";
 
 interface Message {
   id: string;
@@ -15,27 +16,55 @@ interface Message {
   content: string;
 }
 
-const SUGGESTION_PROMPTS = [
-  "Create a portfolio website",
-  "Build a snake game",
-  "Make a todo list app",
-  "Write a Python sorting algorithm",
-];
-
 interface ChatInterfaceProps {
   onOpenPreview?: (data: PreviewData) => void;
+  initialPrompt?: string;
 }
 
-const ChatInterface = ({ onOpenPreview }: ChatInterfaceProps) => {
+const ChatInterface = ({ onOpenPreview, initialPrompt }: ChatInterfaceProps) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const initialPromptSent = useRef(false);
   const { user } = useAuth();
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  // Auto-resize textarea
+  useEffect(() => {
+    const el = textareaRef.current;
+    if (el) {
+      el.style.height = "auto";
+      el.style.height = Math.min(el.scrollHeight, 128) + "px";
+    }
+  }, [input]);
+
+  // Auto-send initial prompt from templates/quick start
+  useEffect(() => {
+    if (initialPrompt && !initialPromptSent.current && messages.length === 0) {
+      initialPromptSent.current = true;
+      handleSend(initialPrompt);
+    }
+  }, [initialPrompt]);
+
+  const saveProject = useCallback(async (content: string, prompt: string) => {
+    if (!user) return;
+    const { files } = parseAIResponse(content);
+    if (files.length === 0) return;
+    const title = files[0]?.name.replace(/\.\w+$/, "") || "Untitled";
+    try {
+      await supabase.from("projects").insert({
+        user_id: user.id,
+        title,
+        prompt,
+        files: files as any,
+      });
+    } catch { /* silent */ }
+  }, [user]);
 
   const handleSend = async (text?: string) => {
     const msgText = (text || input).trim();
@@ -73,6 +102,8 @@ const ChatInterface = ({ onOpenPreview }: ChatInterfaceProps) => {
             prev.map((m) => (m.id === "streaming" ? { ...m, id: crypto.randomUUID() } : m))
           );
           setIsLoading(false);
+          // Auto-save project
+          saveProject(assistantSoFar, msgText);
         },
         onError: (error) => {
           toast({ title: "Error", description: error, variant: "destructive" });
@@ -116,6 +147,7 @@ const ChatInterface = ({ onOpenPreview }: ChatInterfaceProps) => {
       <div className="border-t border-border bg-background/80 backdrop-blur-xl px-4 py-3 pb-20">
         <div className="flex items-end gap-2 rounded-2xl border border-border bg-surface-1 px-3 py-2 focus-within:ring-1 focus-within:ring-foreground/20 transition-all">
           <textarea
+            ref={textareaRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
@@ -135,83 +167,5 @@ const ChatInterface = ({ onOpenPreview }: ChatInterfaceProps) => {
     </div>
   );
 };
-
-const EmptyState = ({ onSuggestionClick }: { onSuggestionClick: (s: string) => void }) => (
-  <div className="flex flex-col items-center justify-center h-full px-6 gap-8">
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
-      className="flex flex-col items-center gap-4"
-    >
-      <img src={logo} alt="Dust" className="w-14 h-14 brightness-200 contrast-200 drop-shadow-lg" />
-      <h1 className="text-xl font-bold tracking-tight text-foreground">Build anything, in text.</h1>
-      <p className="text-sm text-muted-foreground text-center max-w-[280px]">
-        Type an idea and get a working project — or just say hi for a chat.
-      </p>
-    </motion.div>
-    <div className="grid grid-cols-2 gap-2 w-full max-w-sm">
-      {SUGGESTION_PROMPTS.map((prompt) => (
-        <motion.button
-          key={prompt}
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          onClick={() => onSuggestionClick(prompt)}
-          className="rounded-xl border border-border bg-surface-1 px-3 py-3 text-left text-xs text-muted-foreground hover:text-foreground hover:border-foreground/20 transition-all active:scale-[0.97]"
-        >
-          {prompt}
-        </motion.button>
-      ))}
-    </div>
-  </div>
-);
-
-const MessageBubble = ({
-  message,
-  isLoggedIn,
-  onOpenPreview,
-}: {
-  message: Message;
-  isLoggedIn: boolean;
-  onOpenPreview: (html: string, title: string) => void;
-}) => {
-  if (message.role === "user") {
-    return (
-      <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col items-end gap-2">
-        <div className="max-w-[85%] rounded-2xl rounded-br-md bg-foreground px-4 py-2.5 text-sm text-background">
-          {message.content}
-        </div>
-      </motion.div>
-    );
-  }
-
-  const { explanation, files } = parseAIResponse(message.content);
-
-  return (
-    <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} className="space-y-3">
-      {explanation && (
-        <div className="text-sm text-muted-foreground leading-relaxed prose prose-invert prose-sm max-w-none">
-          <ReactMarkdown>{explanation}</ReactMarkdown>
-        </div>
-      )}
-      {files.length > 0 && (
-        <ArtifactCard
-          title={files[0]?.name.replace(/\.\w+$/, "") || "Project"}
-          files={files}
-          isLoggedIn={isLoggedIn}
-          onOpenPreview={onOpenPreview}
-        />
-      )}
-    </motion.div>
-  );
-};
-
-const LoadingIndicator = () => (
-  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-center gap-3 py-4">
-    <img src={logo} alt="" className="w-7 h-7 animate-pulse brightness-200 contrast-200" />
-    <span className="text-sm text-muted-foreground">Thinking...</span>
-  </motion.div>
-);
 
 export default ChatInterface;

@@ -63,6 +63,7 @@
 
   body {
     @apply bg-background text-foreground font-sans antialiased;
+    -webkit-tap-highlight-color: transparent;
   }
 
   /* Scrollbar styling */
@@ -75,6 +76,11 @@
   ::-webkit-scrollbar-thumb {
     background: hsl(var(--muted));
     border-radius: 2px;
+  }
+
+  /* Safe area for notch devices */
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
   }
 }
 

@@ -1,34 +1,65 @@
+import { useState } from "react";
 import { motion } from "framer-motion";
-import { User, LogOut, Settings, HelpCircle } from "lucide-react";
+import { User, LogOut, Trash2, HelpCircle, ExternalLink, Loader2, ArrowRight } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/hooks/use-toast";
+import logo from "@/assets/logo.png";
 
 const AccountPage = () => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
+  const [signingOut, setSigningOut] = useState(false);
 
   if (!user) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-full px-5 pb-24 gap-4">
+      <div className="flex flex-col items-center justify-center min-h-full px-5 pb-24 gap-5">
         <div className="flex h-16 w-16 items-center justify-center rounded-full bg-surface-1 border border-border">
           <User size={24} className="text-muted-foreground" />
         </div>
-        <p className="text-sm font-medium text-foreground">Sign in to save projects</p>
+        <div className="text-center space-y-1">
+          <p className="text-sm font-medium text-foreground">Sign in to save projects</p>
+          <p className="text-xs text-muted-foreground">Your generated projects will be saved to your account</p>
+        </div>
         <button
           onClick={() => navigate("/auth")}
           className="flex items-center gap-2 rounded-full bg-foreground px-6 py-3 text-sm font-medium text-background active:scale-95 transition-transform"
         >
           Sign In
+          <ArrowRight size={14} />
         </button>
       </div>
     );
   }
 
+  const handleSignOut = async () => {
+    setSigningOut(true);
+    await signOut();
+    navigate("/");
+  };
+
+  const handleDeleteAllProjects = async () => {
+    if (!confirm("Delete all your projects? This can't be undone.")) return;
+    const { error } = await supabase.from("projects").delete().eq("user_id", user.id);
+    if (error) {
+      toast({ title: "Error", description: "Failed to delete projects", variant: "destructive" });
+    } else {
+      toast({ title: "All projects deleted" });
+    }
+  };
+
   return (
     <div className="flex flex-col min-h-full px-5 pt-8 pb-24 gap-6">
-      <div>
-        <h1 className="text-lg font-semibold tracking-tight text-foreground">Account</h1>
-        <p className="text-xs text-muted-foreground mt-1">{user.email}</p>
+      {/* Profile header */}
+      <div className="flex items-center gap-4">
+        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-surface-1 border border-border">
+          <img src={logo} alt="" className="w-6 h-6 brightness-200 contrast-200" />
+        </div>
+        <div className="min-w-0">
+          <h1 className="text-lg font-semibold tracking-tight text-foreground truncate">Account</h1>
+          <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+        </div>
       </div>
 
       <motion.div
@@ -36,28 +67,35 @@ const AccountPage = () => {
         animate={{ opacity: 1, y: 0 }}
         className="space-y-1"
       >
-        {[
-          { icon: Settings, label: "Settings", action: () => {} },
-          { icon: HelpCircle, label: "Help & Support", action: () => {} },
-          {
-            icon: LogOut,
-            label: "Sign Out",
-            action: async () => {
-              await signOut();
-              navigate("/");
-            },
-          },
-        ].map(({ icon: Icon, label, action }) => (
-          <button
-            key={label}
-            onClick={action}
-            className="flex w-full items-center gap-3 rounded-xl px-4 py-3.5 text-sm text-muted-foreground hover:text-foreground hover:bg-surface-1 transition-colors"
-          >
-            <Icon size={18} />
-            {label}
-          </button>
-        ))}
+        <button
+          onClick={handleDeleteAllProjects}
+          className="flex w-full items-center gap-3 rounded-xl px-4 py-3.5 text-sm text-muted-foreground hover:text-foreground hover:bg-surface-1 transition-colors"
+        >
+          <Trash2 size={18} />
+          Delete All Projects
+        </button>
+        <a
+          href="mailto:support@dustai.app"
+          className="flex w-full items-center gap-3 rounded-xl px-4 py-3.5 text-sm text-muted-foreground hover:text-foreground hover:bg-surface-1 transition-colors"
+        >
+          <HelpCircle size={18} />
+          Help & Support
+          <ExternalLink size={12} className="ml-auto opacity-50" />
+        </a>
+        <button
+          onClick={handleSignOut}
+          disabled={signingOut}
+          className="flex w-full items-center gap-3 rounded-xl px-4 py-3.5 text-sm text-muted-foreground hover:text-foreground hover:bg-surface-1 transition-colors"
+        >
+          {signingOut ? <Loader2 size={18} className="animate-spin" /> : <LogOut size={18} />}
+          Sign Out
+        </button>
       </motion.div>
+
+      {/* Footer */}
+      <div className="mt-auto pt-8 text-center">
+        <p className="text-[10px] text-muted-foreground/50">Dust AI · Built with ❤️</p>
+      </div>
     </div>
   );
 };
