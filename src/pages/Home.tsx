@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import logo from "@/assets/logo.png";
-import { ArrowRight, Sparkles, Globe, Zap, Gamepad2, Code2, type LucideIcon } from "lucide-react";
+import { ArrowRight, Globe, Zap, Gamepad2, Code2, type LucideIcon } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 const FEATURES: { title: string; desc: string; icon: LucideIcon }[] = [
