@@ -12,6 +12,7 @@ import TemplatesPage from "@/pages/Templates";
 import AccountPage from "@/pages/Account";
 import AuthPage from "@/pages/Auth";
 import ResetPassword from "@/pages/ResetPassword";
+import SharedProject from "@/pages/SharedProject";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
