@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Send, Loader2, ChevronDown, Wand2, Code2, MessageSquare, BookOpen, ShieldCheck, Bug, Trash2 } from "lucide-react";
+import { Send, Loader2, ChevronDown, Sparkles, Braces, MessageCircle, FileSearch, ScanEye, Wrench, Trash2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { streamChat, parseAIResponse, type Msg, type ChatMode } from "@/lib/ai-stream";
 import { toast } from "@/hooks/use-toast";
