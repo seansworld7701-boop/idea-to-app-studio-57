@@ -30,7 +30,7 @@ const Auth = () => {
         const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
         if (error) throw error;
         toast({ title: "Welcome back!" });
-        navigate("/build", { replace: true });
+        navigate(from, { replace: true });
       } else if (mode === "signup") {
         if (password.length < 6) {
           toast({ title: "Error", description: "Password must be at least 6 characters", variant: "destructive" });
