@@ -85,16 +85,16 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
     try {
       if (currentProjectId) {
         await supabase.from("projects").update({
-          files: files.length > 0 ? (files as unknown as Record<string, unknown>[]) : undefined,
-          conversations: conversations as unknown as Record<string, unknown>[],
+          files: files.length > 0 ? (files as any) : undefined,
+          conversations: conversations as any,
         }).eq("id", currentProjectId);
       } else {
         const { data } = await supabase.from("projects").insert({
           user_id: user.id,
           title,
           prompt,
-          files: files.length > 0 ? (files as unknown as Record<string, unknown>[]) : null,
-          conversations: conversations as unknown as Record<string, unknown>[],
+          files: files.length > 0 ? (files as any) : null,
+          conversations: conversations as any,
         }).select("id").single();
         if (data) setCurrentProjectId(data.id);
       }
