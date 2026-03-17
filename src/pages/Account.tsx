@@ -78,7 +78,7 @@ const AccountPage = () => {
       <div className="mt-auto pt-8 text-center space-y-1">
         <p className="text-[10px] text-muted-foreground/50">Dust AI v1.0</p>
         <p className="text-[10px] text-muted-foreground/40">
-          Built by Shivam Choudhury · <a href="tel:+919330249895" className="hover:text-muted-foreground transition-colors">+91 9330249895</a>
+          Built by WixLab · <a href="tel:+919330249895" className="hover:text-muted-foreground transition-colors">+91 9330249895</a>
         </p>
       </div>
     </div>
