@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Send, Loader2 } from "lucide-react";
+import { Send, Loader2, ChevronDown, Sparkles, Code2, MessageSquare } from "lucide-react";
 import { motion } from "framer-motion";
 import { streamChat, parseAIResponse, type Msg } from "@/lib/ai-stream";
 import { toast } from "@/hooks/use-toast";
@@ -9,6 +9,14 @@ import type { PreviewData } from "@/pages/Build";
 import MessageBubble from "./chat/MessageBubble";
 import EmptyState from "./chat/EmptyState";
 import LoadingIndicator from "./chat/LoadingIndicator";
+
+type ChatMode = "all" | "vibe-code" | "chat";
+
+const MODES: { id: ChatMode; label: string; icon: typeof Sparkles; desc: string }[] = [
+  { id: "all", label: "All", icon: Sparkles, desc: "Code + conversation" },
+  { id: "vibe-code", label: "Vibe Code", icon: Code2, desc: "Code generation only" },
+  { id: "chat", label: "Chat", icon: MessageSquare, desc: "Conversation only" },
+];
 
 interface Message {
   id: string;
