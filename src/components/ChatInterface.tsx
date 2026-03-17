@@ -54,6 +54,17 @@ const ChatInterface = ({ onOpenPreview, initialPrompt }: ChatInterfaceProps) => 
     }
   }, [input]);
 
+  // Close mode menu on outside click
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (modeMenuRef.current && !modeMenuRef.current.contains(e.target as Node)) {
+        setModeMenuOpen(false);
+      }
+    };
+    if (modeMenuOpen) document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [modeMenuOpen]);
+
   // Auto-send initial prompt from templates/quick start
   useEffect(() => {
     if (initialPrompt && !initialPromptSent.current && messages.length === 0) {
