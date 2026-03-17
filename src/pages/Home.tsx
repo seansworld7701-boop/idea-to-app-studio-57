@@ -29,7 +29,7 @@ const HomePage = () => {
         transition={{ duration: 0.5 }}
         className="flex flex-col items-center text-center gap-5"
       >
-        <img src={logo} alt="Dust" className="w-16 h-16 drop-shadow-[0_0_8px_rgba(255,255,255,0.4)]" />
+        <img src={logo} alt="Dust" className="w-16 h-16 invert drop-shadow-[0_0_8px_rgba(255,255,255,0.4)]" />
         <div className="space-y-2">
           <h1 className="text-2xl font-semibold tracking-tight text-foreground">
             Build anything, in text.
