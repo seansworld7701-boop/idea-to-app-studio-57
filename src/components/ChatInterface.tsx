@@ -33,7 +33,13 @@ const ChatInterface = ({ onOpenPreview, initialPrompt }: ChatInterfaceProps) => 
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [mode, setMode] = useState<ChatMode>("all");
+  const [modeMenuOpen, setModeMenuOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const initialPromptSent = useRef(false);
+  const modeMenuRef = useRef<HTMLDivElement>(null);
+  const { user } = useAuth();
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const initialPromptSent = useRef(false);
   const { user } = useAuth();
