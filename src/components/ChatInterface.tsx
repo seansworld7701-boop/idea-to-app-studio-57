@@ -40,9 +40,6 @@ const ChatInterface = ({ onOpenPreview, initialPrompt }: ChatInterfaceProps) => 
   const initialPromptSent = useRef(false);
   const modeMenuRef = useRef<HTMLDivElement>(null);
   const { user } = useAuth();
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const initialPromptSent = useRef(false);
-  const { user } = useAuth();
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
