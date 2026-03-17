@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Send, Loader2, ChevronDown, Wand2, Code2, MessageSquare, BookOpen, ShieldCheck, Bug, Trash2 } from "lucide-react";
+import { Send, Loader2, ChevronDown, Sparkles, Braces, MessageCircle, FileSearch, ScanEye, Wrench, Trash2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { streamChat, parseAIResponse, type Msg, type ChatMode } from "@/lib/ai-stream";
 import { toast } from "@/hooks/use-toast";
@@ -10,13 +10,13 @@ import MessageBubble from "./chat/MessageBubble";
 import EmptyState from "./chat/EmptyState";
 import LoadingIndicator from "./chat/LoadingIndicator";
 
-const MODES: { id: ChatMode; label: string; icon: typeof Code2; desc: string }[] = [
-  { id: "all", label: "All", icon: Wand2, desc: "Code + conversation" },
-  { id: "vibe-code", label: "Vibe Code", icon: Code2, desc: "Code generation only" },
-  { id: "chat", label: "Chat", icon: MessageSquare, desc: "Conversation only" },
-  { id: "explain", label: "Explain", icon: BookOpen, desc: "Explain code in detail" },
-  { id: "review", label: "Review", icon: ShieldCheck, desc: "Code review & audit" },
-  { id: "debug", label: "Debug", icon: Bug, desc: "Find & fix bugs" },
+const MODES: { id: ChatMode; label: string; icon: typeof Braces; desc: string }[] = [
+  { id: "all", label: "All", icon: Sparkles, desc: "Code + conversation" },
+  { id: "vibe-code", label: "Vibe Code", icon: Braces, desc: "Code generation only" },
+  { id: "chat", label: "Chat", icon: MessageCircle, desc: "Conversation only" },
+  { id: "explain", label: "Explain", icon: FileSearch, desc: "Explain code in detail" },
+  { id: "review", label: "Review", icon: ScanEye, desc: "Code review & audit" },
+  { id: "debug", label: "Debug", icon: Wrench, desc: "Find & fix bugs" },
 ];
 
 interface Message {
