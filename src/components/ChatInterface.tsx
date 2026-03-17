@@ -144,7 +144,7 @@ const EmptyState = ({ onSuggestionClick }: { onSuggestionClick: (s: string) => v
       transition={{ duration: 0.5 }}
       className="flex flex-col items-center gap-4"
     >
-      <img src={logo} alt="Dust" className="w-14 h-14 drop-shadow-lg invert" />
+      <img src={logo} alt="Dust" className="w-14 h-14 drop-shadow-lg" />
       <h1 className="text-xl font-bold tracking-tight text-foreground">Build anything, in text.</h1>
       <p className="text-sm text-muted-foreground text-center max-w-[280px]">
         Type an idea and get a working project — or just say hi for a chat.
@@ -209,7 +209,7 @@ const MessageBubble = ({
 
 const LoadingIndicator = () => (
   <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-center gap-3 py-4">
-    <img src={logo} alt="" className="w-7 h-7 animate-pulse invert" />
+    <img src={logo} alt="" className="w-7 h-7 animate-pulse" />
     <span className="text-sm text-muted-foreground">Thinking...</span>
   </motion.div>
 );
