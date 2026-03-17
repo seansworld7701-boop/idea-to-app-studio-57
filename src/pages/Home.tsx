@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import logo from "@/assets/logo.png";
-import { ArrowRight, Sparkles, Globe, Zap, Gamepad2, Code2, type LucideIcon } from "lucide-react";
+import { ArrowRight, Globe, Zap, Gamepad2, Code2, type LucideIcon } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 const FEATURES: { title: string; desc: string; icon: LucideIcon }[] = [
@@ -29,16 +29,7 @@ const HomePage = () => {
         transition={{ duration: 0.5 }}
         className="flex flex-col items-center text-center gap-5"
       >
-        <div className="relative">
-          <img src={logo} alt="Dust AI" className="w-16 h-16 brightness-200 contrast-200 drop-shadow-[0_0_12px_rgba(255,255,255,0.3)]" />
-          <motion.div
-            animate={{ scale: [1, 1.2, 1], opacity: [0.5, 1, 0.5] }}
-            transition={{ duration: 2, repeat: Infinity }}
-            className="absolute -top-1 -right-1"
-          >
-            <Sparkles size={14} className="text-foreground/60" />
-          </motion.div>
-        </div>
+        <img src={logo} alt="Dust AI" className="w-16 h-16 brightness-200 contrast-200 drop-shadow-[0_0_12px_rgba(255,255,255,0.3)]" />
         <div className="space-y-2">
           <h1 className="text-2xl font-semibold tracking-tight text-foreground">
             Build anything, in text.

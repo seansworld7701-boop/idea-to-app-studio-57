@@ -37,28 +37,37 @@ export type Database = {
       }
       projects: {
         Row: {
+          conversations: Json | null
           created_at: string
           files: Json | null
           id: string
+          is_shared: boolean
           prompt: string | null
+          share_id: string | null
           title: string
           updated_at: string
           user_id: string
         }
         Insert: {
+          conversations?: Json | null
           created_at?: string
           files?: Json | null
           id?: string
+          is_shared?: boolean
           prompt?: string | null
+          share_id?: string | null
           title: string
           updated_at?: string
           user_id: string
         }
         Update: {
+          conversations?: Json | null
           created_at?: string
           files?: Json | null
           id?: string
+          is_shared?: boolean
           prompt?: string | null
+          share_id?: string | null
           title?: string
           updated_at?: string
           user_id?: string
