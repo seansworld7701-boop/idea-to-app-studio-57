@@ -1,1 +1,1 @@
-Developer credit: Built by Shivam Choudhury, contact +91 9330249895. Shown in Account page footer only, small and subtle.
+Developer credit: Built by WixLab, contact +91 9330249895. Shown in Account page footer only, small and subtle.
