@@ -70,7 +70,7 @@ const ResetPassword = () => {
   if (done) {
     return (
       <div className="flex flex-col items-center justify-center min-h-full px-6 pb-24 gap-4">
-        <CheckCircle size={40} className="text-green-500" />
+        <CheckCircle size={40} className="text-foreground" />
         <p className="text-sm font-medium text-foreground">Password updated successfully!</p>
         <p className="text-xs text-muted-foreground">Redirecting…</p>
       </div>
