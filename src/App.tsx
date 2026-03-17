@@ -34,6 +34,7 @@ const App = () => (
                 <Route path="/account" element={<AccountPage />} />
                 <Route path="/auth" element={<AuthPage />} />
                 <Route path="/reset-password" element={<ResetPassword />} />
+                <Route path="/shared/:shareId" element={<SharedProject />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </div>
