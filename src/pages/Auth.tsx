@@ -39,16 +39,17 @@ const Auth = () => {
           setLoading(false);
           return;
         }
+        const authCallbackUrl = `${window.location.origin}/auth/callback`;
         const { error } = await supabase.auth.signUp({
           email: email.trim(),
           password,
-          options: { emailRedirectTo: window.location.origin },
+          options: { emailRedirectTo: authCallbackUrl },
         });
         if (error) throw error;
         toast({ title: "Check your email", description: "We sent you a verification link." });
       } else {
         const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-          redirectTo: `${window.location.origin}/reset-password`,
+          redirectTo: `${window.location.origin}/auth/callback?next=/reset-password`,
         });
         if (error) throw error;
         toast({ title: "Check your email", description: "We sent you a password reset link." });

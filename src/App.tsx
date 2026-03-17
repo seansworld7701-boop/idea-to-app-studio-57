@@ -13,6 +13,7 @@ import TemplatesPage from "@/pages/Templates";
 import AccountPage from "@/pages/Account";
 import AuthPage from "@/pages/Auth";
 import ResetPassword from "@/pages/ResetPassword";
+import AuthCallback from "@/pages/AuthCallback";
 import SharedProject from "@/pages/SharedProject";
 import NotFound from "@/pages/NotFound";
 
@@ -35,6 +36,7 @@ const App = () => (
                   <Route path="/templates" element={<TemplatesPage />} />
                   <Route path="/account" element={<AccountPage />} />
                   <Route path="/auth" element={<AuthPage />} />
+                  <Route path="/auth/callback" element={<AuthCallback />} />
                   <Route path="/reset-password" element={<ResetPassword />} />
                   <Route path="/shared/:shareId" element={<SharedProject />} />
                   <Route path="*" element={<NotFound />} />
