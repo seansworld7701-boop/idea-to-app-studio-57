@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { User, LogOut, Trash2, HelpCircle, ExternalLink, Loader2, ArrowRight } from "lucide-react";
+import { LogOut, Trash2, HelpCircle, ExternalLink, Loader2 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -12,26 +12,8 @@ const AccountPage = () => {
   const navigate = useNavigate();
   const [signingOut, setSigningOut] = useState(false);
 
-  if (!user) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-full px-5 pb-24 gap-5">
-        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-surface-1 border border-border">
-          <User size={24} className="text-muted-foreground" />
-        </div>
-        <div className="text-center space-y-1">
-          <p className="text-sm font-medium text-foreground">Sign in to save projects</p>
-          <p className="text-xs text-muted-foreground">Your generated projects will be saved to your account</p>
-        </div>
-        <button
-          onClick={() => navigate("/auth")}
-          className="flex items-center gap-2 rounded-full bg-foreground px-6 py-3 text-sm font-medium text-background active:scale-95 transition-transform"
-        >
-          Sign In
-          <ArrowRight size={14} />
-        </button>
-      </div>
-    );
-  }
+  // Route guard handles unauthenticated state
+  if (!user) return null;
 
   const handleSignOut = async () => {
     setSigningOut(true);

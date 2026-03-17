@@ -121,23 +121,8 @@ const ProjectsPage = () => {
     setSharing(null);
   };
 
-  if (!user) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-full px-5 pb-24 gap-4">
-        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-surface-1 border border-border">
-          <FolderOpen size={22} className="text-muted-foreground" />
-        </div>
-        <p className="text-sm font-medium text-foreground">Sign in to save projects</p>
-        <button
-          onClick={() => navigate("/auth")}
-          className="flex items-center gap-2 rounded-full bg-foreground px-6 py-3 text-sm font-medium text-background active:scale-95 transition-transform"
-        >
-          Sign In
-          <ArrowRight size={14} />
-        </button>
-      </div>
-    );
-  }
+  // Route guard handles unauthenticated state
+  if (!user) return null;
 
   if (loading) {
     return (
