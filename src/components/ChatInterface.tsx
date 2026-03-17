@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Send, Loader2 } from "lucide-react";
+import { Send, Loader2, ChevronDown, Sparkles, Code2, MessageSquare } from "lucide-react";
 import { motion } from "framer-motion";
 import { streamChat, parseAIResponse, type Msg } from "@/lib/ai-stream";
 import { toast } from "@/hooks/use-toast";
@@ -9,6 +9,14 @@ import type { PreviewData } from "@/pages/Build";
 import MessageBubble from "./chat/MessageBubble";
 import EmptyState from "./chat/EmptyState";
 import LoadingIndicator from "./chat/LoadingIndicator";
+
+type ChatMode = "all" | "vibe-code" | "chat";
+
+const MODES: { id: ChatMode; label: string; icon: typeof Sparkles; desc: string }[] = [
+  { id: "all", label: "All", icon: Sparkles, desc: "Code + conversation" },
+  { id: "vibe-code", label: "Vibe Code", icon: Code2, desc: "Code generation only" },
+  { id: "chat", label: "Chat", icon: MessageSquare, desc: "Conversation only" },
+];
 
 interface Message {
   id: string;
@@ -25,9 +33,12 @@ const ChatInterface = ({ onOpenPreview, initialPrompt }: ChatInterfaceProps) => 
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [mode, setMode] = useState<ChatMode>("all");
+  const [modeMenuOpen, setModeMenuOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const initialPromptSent = useRef(false);
+  const modeMenuRef = useRef<HTMLDivElement>(null);
   const { user } = useAuth();
 
   useEffect(() => {
@@ -42,6 +53,17 @@ const ChatInterface = ({ onOpenPreview, initialPrompt }: ChatInterfaceProps) => 
       el.style.height = Math.min(el.scrollHeight, 128) + "px";
     }
   }, [input]);
+
+  // Close mode menu on outside click
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (modeMenuRef.current && !modeMenuRef.current.contains(e.target as Node)) {
+        setModeMenuOpen(false);
+      }
+    };
+    if (modeMenuOpen) document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [modeMenuOpen]);
 
   // Auto-send initial prompt from templates/quick start
   useEffect(() => {
@@ -145,13 +167,54 @@ const ChatInterface = ({ onOpenPreview, initialPrompt }: ChatInterfaceProps) => 
 
       {/* Input */}
       <div className="border-t border-border bg-background/80 backdrop-blur-xl px-4 py-3 pb-20">
+        {/* Mode switcher */}
+        <div className="relative mb-2" ref={modeMenuRef}>
+          <button
+            onClick={() => setModeMenuOpen((v) => !v)}
+            className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-surface-1 transition-all"
+          >
+            {(() => { const m = MODES.find((m) => m.id === mode)!; const Icon = m.icon; return <Icon size={14} />; })()}
+            {MODES.find((m) => m.id === mode)!.label}
+            <ChevronDown size={12} className={`transition-transform ${modeMenuOpen ? "rotate-180" : ""}`} />
+          </button>
+          {modeMenuOpen && (
+            <motion.div
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="absolute bottom-full left-0 mb-1 w-48 rounded-xl border border-border bg-background shadow-lg overflow-hidden z-50"
+            >
+              {MODES.map((m) => {
+                const Icon = m.icon;
+                return (
+                  <button
+                    key={m.id}
+                    onClick={() => { setMode(m.id); setModeMenuOpen(false); }}
+                    className={`flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-xs transition-colors ${
+                      mode === m.id ? "bg-surface-1 text-foreground" : "text-muted-foreground hover:text-foreground hover:bg-surface-1/50"
+                    }`}
+                  >
+                    <Icon size={14} />
+                    <div>
+                      <div className="font-medium">{m.label}</div>
+                      <div className="text-[10px] text-muted-foreground">{m.desc}</div>
+                    </div>
+                  </button>
+                );
+              })}
+            </motion.div>
+          )}
+        </div>
         <div className="flex items-end gap-2 rounded-2xl border border-border bg-surface-1 px-3 py-2 focus-within:ring-1 focus-within:ring-foreground/20 transition-all">
           <textarea
             ref={textareaRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Say hi or describe what to build..."
+            placeholder={
+              mode === "vibe-code" ? "Describe what to build..."
+              : mode === "chat" ? "Ask anything..."
+              : "Say hi or describe what to build..."
+            }
             rows={1}
             className="flex-1 resize-none bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none max-h-32"
           />
