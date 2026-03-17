@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Download, Copy, Eye, EyeOff, Check } from "lucide-react";
+import { Download, Copy, Eye, EyeOff, Check, Lock } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import JSZip from "jszip";
 import { saveAs } from "file-saver";
 
@@ -13,21 +14,24 @@ interface ArtifactFile {
 interface ArtifactCardProps {
   title: string;
   files: ArtifactFile[];
+  isLoggedIn: boolean;
 }
 
 function buildPreviewHtml(files: ArtifactFile[]): string {
   const html = files.find((f) => f.name.endsWith(".html"))?.content || "";
   const css = files.find((f) => f.name.endsWith(".css"))?.content || "";
   const js = files.find((f) => f.name.endsWith(".js"))?.content || "";
-  return `${html}<style>${css}</style><script>${js}<\/script>`;
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:system-ui,sans-serif;background:#0a0a0a;color:#fff;overflow:hidden}${css}</style></head><body>${html}<script>${js}<\/script></body></html>`;
 }
 
-const ArtifactCard = ({ title, files }: ArtifactCardProps) => {
+const ArtifactCard = ({ title, files, isLoggedIn }: ArtifactCardProps) => {
   const [activeTab, setActiveTab] = useState(0);
   const [showPreview, setShowPreview] = useState(false);
   const [copied, setCopied] = useState(false);
+  const navigate = useNavigate();
 
   const handleDownload = async () => {
+    if (!isLoggedIn) { navigate("/auth"); return; }
     const zip = new JSZip();
     files.forEach((f) => zip.file(f.name, f.content));
     const blob = await zip.generateAsync({ type: "blob" });
@@ -41,63 +45,78 @@ const ArtifactCard = ({ title, files }: ArtifactCardProps) => {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const handlePreview = () => {
+    if (!isLoggedIn) { navigate("/auth"); return; }
+    setShowPreview(!showPreview);
+  };
+
   const hasPreview = files.some((f) => f.name.endsWith(".html"));
 
   return (
-    <div className="rounded-xl border border-border bg-surface-1 overflow-hidden">
+    <div className="rounded-2xl border border-border bg-surface-1 overflow-hidden shadow-lg">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-2.5 bg-surface-2/50 border-b border-border">
-        <span className="text-xs font-medium text-foreground">{title}</span>
-        <span className="text-[10px] text-muted-foreground font-mono">
+      <div className="flex items-center justify-between px-4 py-3 bg-surface-2/60 border-b border-border">
+        <div className="flex items-center gap-2">
+          <div className="flex gap-1">
+            <span className="w-2.5 h-2.5 rounded-full bg-red-500/70" />
+            <span className="w-2.5 h-2.5 rounded-full bg-yellow-500/70" />
+            <span className="w-2.5 h-2.5 rounded-full bg-green-500/70" />
+          </div>
+          <span className="text-xs font-semibold text-foreground ml-1">{title}</span>
+        </div>
+        <span className="text-[10px] text-muted-foreground font-mono bg-surface-2 px-2 py-0.5 rounded-full">
           {files.length} file{files.length !== 1 ? "s" : ""}
         </span>
       </div>
 
       {/* File tabs */}
-      <div className="flex gap-0 border-b border-border overflow-x-auto">
+      <div className="flex gap-0 border-b border-border overflow-x-auto bg-surface-2/30">
         {files.map((file, idx) => (
           <button
             key={file.name}
             onClick={() => setActiveTab(idx)}
-            className={`px-3 py-2 text-xs font-mono whitespace-nowrap transition-colors ${
+            className={`px-3 py-2 text-xs font-mono whitespace-nowrap transition-colors relative ${
               activeTab === idx
-                ? "text-foreground bg-surface-2 border-b border-foreground"
+                ? "text-foreground"
                 : "text-muted-foreground hover:text-foreground"
             }`}
           >
             {file.name}
+            {activeTab === idx && (
+              <motion.div layoutId="tab-indicator" className="absolute bottom-0 left-0 right-0 h-0.5 bg-foreground" />
+            )}
           </button>
         ))}
       </div>
 
       {/* Code */}
-      <pre className="p-4 overflow-x-auto max-h-52">
-        <code className="text-[13px] leading-relaxed font-mono text-muted-foreground">
+      <pre className="p-4 overflow-x-auto max-h-56 bg-background/50">
+        <code className="text-[12px] leading-relaxed font-mono text-muted-foreground">
           {files[activeTab]?.content}
         </code>
       </pre>
 
       {/* Actions */}
-      <div className="flex items-center gap-2 px-4 py-3 border-t border-border">
+      <div className="flex items-center gap-2 px-4 py-3 border-t border-border bg-surface-2/30">
         {hasPreview && (
           <button
-            onClick={() => setShowPreview(!showPreview)}
-            className="flex items-center gap-1.5 flex-1 justify-center rounded-lg bg-foreground py-2.5 text-xs font-medium text-background active:scale-[0.97] transition-transform"
+            onClick={handlePreview}
+            className="flex items-center gap-1.5 flex-1 justify-center rounded-xl bg-foreground py-2.5 text-xs font-medium text-background active:scale-[0.97] transition-transform"
           >
-            {showPreview ? <EyeOff size={14} /> : <Eye size={14} />}
+            {!isLoggedIn ? <Lock size={13} /> : showPreview ? <EyeOff size={14} /> : <Eye size={14} />}
             {showPreview ? "Hide" : "Preview"}
           </button>
         )}
         <button
           onClick={handleDownload}
-          className="flex items-center gap-1.5 flex-1 justify-center rounded-lg bg-foreground py-2.5 text-xs font-medium text-background active:scale-[0.97] transition-transform"
+          className="flex items-center gap-1.5 flex-1 justify-center rounded-xl bg-foreground py-2.5 text-xs font-medium text-background active:scale-[0.97] transition-transform"
         >
-          <Download size={14} />
+          {!isLoggedIn ? <Lock size={13} /> : <Download size={14} />}
           Download
         </button>
         <button
           onClick={handleCopy}
-          className="flex items-center gap-1.5 rounded-lg border border-border px-4 py-2.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+          className="flex items-center gap-1.5 rounded-xl border border-border px-4 py-2.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
         >
           {copied ? <Check size={14} /> : <Copy size={14} />}
           {copied ? "Copied" : "Copy"}
@@ -108,14 +127,15 @@ const ArtifactCard = ({ title, files }: ArtifactCardProps) => {
       <AnimatePresence>
         {showPreview && (
           <motion.div
-            initial={{ height: 0 }}
-            animate={{ height: 350 }}
-            exit={{ height: 0 }}
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 400, opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ type: "spring", damping: 25, stiffness: 300 }}
             className="overflow-hidden border-t border-border"
           >
             <iframe
               srcDoc={buildPreviewHtml(files)}
-              className="w-full h-[350px] bg-white"
+              className="w-full h-[400px] bg-[#0a0a0a]"
               sandbox="allow-scripts"
               title="preview"
             />

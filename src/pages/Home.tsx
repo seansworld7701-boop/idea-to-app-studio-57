@@ -29,13 +29,13 @@ const HomePage = () => {
         transition={{ duration: 0.5 }}
         className="flex flex-col items-center text-center gap-5"
       >
-        <img src={logo} alt="Forge" className="w-14 h-14 invert brightness-200 contrast-200 drop-shadow-[0_0_3px_rgba(255,255,255,0.8)]" />
+        <img src={logo} alt="Dust" className="w-16 h-16 drop-shadow-[0_0_8px_rgba(255,255,255,0.4)]" />
         <div className="space-y-2">
           <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-            Build the web, in text.
+            Build anything, in text.
           </h1>
           <p className="text-sm text-muted-foreground max-w-[300px] mx-auto">
-            Type any idea. Get a working project. No coding required.
+            Type any idea. Get a working project. Powered by Dust AI.
           </p>
         </div>
         <button

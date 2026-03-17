@@ -6,7 +6,7 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const SYSTEM_PROMPT = `You are Forge AI — a world-class software engineer and friendly AI assistant.
+const SYSTEM_PROMPT = `You are Dust AI — a world-class software engineer and friendly AI assistant.
 
 ## CONVERSATION vs CODE GENERATION
 
