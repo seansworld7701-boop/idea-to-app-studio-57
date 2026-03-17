@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/hooks/useAuth";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import RouteGuard from "@/components/RouteGuard";
 import BottomNav from "@/components/BottomNav";
 import HomePage from "@/pages/Home";
 import BuildPage from "@/pages/Build";
@@ -31,11 +32,11 @@ const App = () => (
               <div className="flex-1 overflow-y-auto">
                 <Routes>
                   <Route path="/" element={<HomePage />} />
-                  <Route path="/build" element={<BuildPage />} />
-                  <Route path="/projects" element={<ProjectsPage />} />
+                  <Route path="/build" element={<RouteGuard><BuildPage /></RouteGuard>} />
+                  <Route path="/projects" element={<RouteGuard><ProjectsPage /></RouteGuard>} />
                   <Route path="/templates" element={<TemplatesPage />} />
-                  <Route path="/account" element={<AccountPage />} />
-                  <Route path="/auth" element={<AuthPage />} />
+                  <Route path="/account" element={<RouteGuard><AccountPage /></RouteGuard>} />
+                  <Route path="/auth" element={<RouteGuard requireAuth={false} redirectTo="/build"><AuthPage /></RouteGuard>} />
                   <Route path="/auth/callback" element={<AuthCallback />} />
                   <Route path="/reset-password" element={<ResetPassword />} />
                   <Route path="/shared/:shareId" element={<SharedProject />} />
