@@ -14,12 +14,10 @@ const Auth = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const navigate = useNavigate();
-  const { user } = useAuth();
-
-  useEffect(() => {
-    if (user) navigate("/", { replace: true });
-  }, [user, navigate]);
+  const location = useLocation();
+  const from = (location.state as { from?: string })?.from || "/build";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
