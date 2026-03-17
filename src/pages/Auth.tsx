@@ -1,10 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { lovable } from "@/integrations/lovable/index";
 import { toast } from "@/hooks/use-toast";
 import { Mail, Lock, ArrowRight, Loader2, ArrowLeft } from "lucide-react";
 import { motion } from "framer-motion";
-import { useNavigate } from "react-router-dom";
-import { useAuth } from "@/hooks/useAuth";
+import { useNavigate, useLocation } from "react-router-dom";
 import logo from "@/assets/logo.png";
 
 type Mode = "login" | "signup" | "forgot";
