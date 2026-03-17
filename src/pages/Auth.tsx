@@ -45,7 +45,7 @@ const Auth = () => {
         className="w-full max-w-sm space-y-8"
       >
         <div className="flex flex-col items-center gap-3">
-          <img src={logo} alt="Dust" className="w-12 h-12" />
+          <img src={logo} alt="Dust" className="w-12 h-12 brightness-200 contrast-200" />
           <h1 className="text-xl font-bold text-foreground">
             {isLogin ? "Welcome back" : "Create account"}
           </h1>

@@ -209,7 +209,7 @@ const MessageBubble = ({
 
 const LoadingIndicator = () => (
   <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-center gap-3 py-4">
-    <img src={logo} alt="" className="w-7 h-7 animate-pulse" />
+    <img src={logo} alt="" className="w-7 h-7 animate-pulse brightness-200 contrast-200" />
     <span className="text-sm text-muted-foreground">Thinking...</span>
   </motion.div>
 );
