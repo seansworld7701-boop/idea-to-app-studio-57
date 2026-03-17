@@ -11,6 +11,7 @@ import ProjectsPage from "@/pages/Projects";
 import TemplatesPage from "@/pages/Templates";
 import AccountPage from "@/pages/Account";
 import AuthPage from "@/pages/Auth";
+import ResetPassword from "@/pages/ResetPassword";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -31,6 +32,7 @@ const App = () => (
                 <Route path="/templates" element={<TemplatesPage />} />
                 <Route path="/account" element={<AccountPage />} />
                 <Route path="/auth" element={<AuthPage />} />
+                <Route path="/reset-password" element={<ResetPassword />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </div>
