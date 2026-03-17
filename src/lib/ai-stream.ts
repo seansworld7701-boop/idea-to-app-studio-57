@@ -1,14 +1,17 @@
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
 
 export type Msg = { role: "user" | "assistant"; content: string };
+export type ChatMode = "all" | "vibe-code" | "chat";
 
 export async function streamChat({
   messages,
+  mode = "all",
   onDelta,
   onDone,
   onError,
 }: {
   messages: Msg[];
+  mode?: ChatMode;
   onDelta: (text: string) => void;
   onDone: () => void;
   onError: (error: string) => void;
@@ -19,7 +22,7 @@ export async function streamChat({
       "Content-Type": "application/json",
       Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
     },
-    body: JSON.stringify({ messages }),
+    body: JSON.stringify({ messages, mode }),
   });
 
   if (!resp.ok) {

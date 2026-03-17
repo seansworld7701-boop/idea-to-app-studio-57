@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Send, Loader2, ChevronDown, Sparkles, Code2, MessageSquare } from "lucide-react";
+import { Send, Loader2, ChevronDown, Wand2, Code2, MessageSquare } from "lucide-react";
 import { motion } from "framer-motion";
-import { streamChat, parseAIResponse, type Msg } from "@/lib/ai-stream";
+import { streamChat, parseAIResponse, type Msg, type ChatMode } from "@/lib/ai-stream";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -10,10 +10,8 @@ import MessageBubble from "./chat/MessageBubble";
 import EmptyState from "./chat/EmptyState";
 import LoadingIndicator from "./chat/LoadingIndicator";
 
-type ChatMode = "all" | "vibe-code" | "chat";
-
-const MODES: { id: ChatMode; label: string; icon: typeof Sparkles; desc: string }[] = [
-  { id: "all", label: "All", icon: Sparkles, desc: "Code + conversation" },
+const MODES: { id: ChatMode; label: string; icon: typeof Code2; desc: string }[] = [
+  { id: "all", label: "All", icon: Wand2, desc: "Code + conversation" },
   { id: "vibe-code", label: "Vibe Code", icon: Code2, desc: "Code generation only" },
   { id: "chat", label: "Chat", icon: MessageSquare, desc: "Conversation only" },
 ];
@@ -27,14 +25,17 @@ interface Message {
 interface ChatInterfaceProps {
   onOpenPreview?: (data: PreviewData) => void;
   initialPrompt?: string;
+  projectId?: string;
+  initialMessages?: Message[];
 }
 
-const ChatInterface = ({ onOpenPreview, initialPrompt }: ChatInterfaceProps) => {
-  const [messages, setMessages] = useState<Message[]>([]);
+const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessages }: ChatInterfaceProps) => {
+  const [messages, setMessages] = useState<Message[]>(initialMessages || []);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [mode, setMode] = useState<ChatMode>("all");
   const [modeMenuOpen, setModeMenuOpen] = useState(false);
+  const [currentProjectId, setCurrentProjectId] = useState<string | null>(projectId || null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const initialPromptSent = useRef(false);
@@ -45,7 +46,6 @@ const ChatInterface = ({ onOpenPreview, initialPrompt }: ChatInterfaceProps) => 
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Auto-resize textarea
   useEffect(() => {
     const el = textareaRef.current;
     if (el) {
@@ -54,7 +54,6 @@ const ChatInterface = ({ onOpenPreview, initialPrompt }: ChatInterfaceProps) => 
     }
   }, [input]);
 
-  // Close mode menu on outside click
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (modeMenuRef.current && !modeMenuRef.current.contains(e.target as Node)) {
@@ -65,7 +64,6 @@ const ChatInterface = ({ onOpenPreview, initialPrompt }: ChatInterfaceProps) => 
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [modeMenuOpen]);
 
-  // Auto-send initial prompt from templates/quick start
   useEffect(() => {
     if (initialPrompt && !initialPromptSent.current && messages.length === 0) {
       initialPromptSent.current = true;
@@ -73,40 +71,52 @@ const ChatInterface = ({ onOpenPreview, initialPrompt }: ChatInterfaceProps) => 
     }
   }, [initialPrompt]);
 
-  const saveProject = useCallback(async (content: string, prompt: string) => {
+  const saveProject = useCallback(async (allMessages: Message[], prompt: string, assistantContent: string) => {
     if (!user) return;
-    const { files } = parseAIResponse(content);
-    if (files.length === 0) return;
-    const title = files[0]?.name.replace(/\.\w+$/, "") || "Untitled";
+    const { files } = parseAIResponse(assistantContent);
+    const title = files.length > 0
+      ? files[0]?.name.replace(/\.\w+$/, "") || "Untitled"
+      : prompt.slice(0, 50) || "Chat";
+    const conversations = allMessages.map((m) => ({ role: m.role, content: m.content }));
+
     try {
-      await supabase.from("projects").insert({
-        user_id: user.id,
-        title,
-        prompt,
-        files: files as any,
-      });
+      if (currentProjectId) {
+        // Update existing project
+        await supabase.from("projects").update({
+          files: files.length > 0 ? (files as any) : undefined,
+          conversations: conversations as any,
+        }).eq("id", currentProjectId);
+      } else {
+        // Create new project
+        const { data } = await supabase.from("projects").insert({
+          user_id: user.id,
+          title,
+          prompt,
+          files: files.length > 0 ? (files as any) : null,
+          conversations: conversations as any,
+        }).select("id").single();
+        if (data) setCurrentProjectId(data.id);
+      }
     } catch { /* silent */ }
-  }, [user]);
+  }, [user, currentProjectId]);
 
   const handleSend = async (text?: string) => {
     const msgText = (text || input).trim();
     if (!msgText || isLoading) return;
 
     const userMsg: Message = { id: crypto.randomUUID(), role: "user", content: msgText };
-    setMessages((prev) => [...prev, userMsg]);
+    const newMessages = [...messages, userMsg];
+    setMessages(newMessages);
     setInput("");
     setIsLoading(true);
 
-    const history: Msg[] = [
-      ...messages.map((m) => ({ role: m.role, content: m.content })),
-      { role: "user" as const, content: msgText },
-    ];
-
+    const history: Msg[] = newMessages.map((m) => ({ role: m.role, content: m.content }));
     let assistantSoFar = "";
 
     try {
       await streamChat({
         messages: history,
+        mode,
         onDelta: (chunk) => {
           assistantSoFar += chunk;
           setMessages((prev) => {
@@ -120,12 +130,12 @@ const ChatInterface = ({ onOpenPreview, initialPrompt }: ChatInterfaceProps) => 
           });
         },
         onDone: () => {
-          setMessages((prev) =>
-            prev.map((m) => (m.id === "streaming" ? { ...m, id: crypto.randomUUID() } : m))
-          );
+          setMessages((prev) => {
+            const final = prev.map((m) => (m.id === "streaming" ? { ...m, id: crypto.randomUUID() } : m));
+            saveProject(final, msgText, assistantSoFar);
+            return final;
+          });
           setIsLoading(false);
-          // Auto-save project
-          saveProject(assistantSoFar, msgText);
         },
         onError: (error) => {
           toast({ title: "Error", description: error, variant: "destructive" });
@@ -148,6 +158,8 @@ const ChatInterface = ({ onOpenPreview, initialPrompt }: ChatInterfaceProps) => 
   };
 
   const isEmpty = messages.length === 0;
+  const activeMode = MODES.find((m) => m.id === mode)!;
+  const ActiveIcon = activeMode.icon;
 
   return (
     <div className="flex flex-col h-full">
@@ -173,8 +185,8 @@ const ChatInterface = ({ onOpenPreview, initialPrompt }: ChatInterfaceProps) => 
             onClick={() => setModeMenuOpen((v) => !v)}
             className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-surface-1 transition-all"
           >
-            {(() => { const m = MODES.find((m) => m.id === mode)!; const Icon = m.icon; return <Icon size={14} />; })()}
-            {MODES.find((m) => m.id === mode)!.label}
+            <ActiveIcon size={14} />
+            {activeMode.label}
             <ChevronDown size={12} className={`transition-transform ${modeMenuOpen ? "rotate-180" : ""}`} />
           </button>
           {modeMenuOpen && (
