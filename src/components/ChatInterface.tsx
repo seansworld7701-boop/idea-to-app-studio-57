@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Send, Loader2, ChevronDown, Wand2, Code2, MessageSquare } from "lucide-react";
+import { Send, Loader2, ChevronDown, Wand2, Code2, MessageSquare, BookOpen, ShieldCheck, Bug, Trash2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { streamChat, parseAIResponse, type Msg, type ChatMode } from "@/lib/ai-stream";
 import { toast } from "@/hooks/use-toast";
@@ -14,6 +14,9 @@ const MODES: { id: ChatMode; label: string; icon: typeof Code2; desc: string }[]
   { id: "all", label: "All", icon: Wand2, desc: "Code + conversation" },
   { id: "vibe-code", label: "Vibe Code", icon: Code2, desc: "Code generation only" },
   { id: "chat", label: "Chat", icon: MessageSquare, desc: "Conversation only" },
+  { id: "explain", label: "Explain", icon: BookOpen, desc: "Explain code in detail" },
+  { id: "review", label: "Review", icon: ShieldCheck, desc: "Code review & audit" },
+  { id: "debug", label: "Debug", icon: Bug, desc: "Find & fix bugs" },
 ];
 
 interface Message {
@@ -81,19 +84,17 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
 
     try {
       if (currentProjectId) {
-        // Update existing project
         await supabase.from("projects").update({
-          files: files.length > 0 ? (files as any) : undefined,
-          conversations: conversations as any,
+          files: files.length > 0 ? (files as unknown as Record<string, unknown>[]) : undefined,
+          conversations: conversations as unknown as Record<string, unknown>[],
         }).eq("id", currentProjectId);
       } else {
-        // Create new project
         const { data } = await supabase.from("projects").insert({
           user_id: user.id,
           title,
           prompt,
-          files: files.length > 0 ? (files as any) : null,
-          conversations: conversations as any,
+          files: files.length > 0 ? (files as unknown as Record<string, unknown>[]) : null,
+          conversations: conversations as unknown as Record<string, unknown>[],
         }).select("id").single();
         if (data) setCurrentProjectId(data.id);
       }
@@ -151,6 +152,24 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
     }
   };
 
+  const handleRetry = () => {
+    if (messages.length < 2) return;
+    const lastUserMsg = [...messages].reverse().find((m) => m.role === "user");
+    if (!lastUserMsg) return;
+    // Remove the last assistant message and retry
+    setMessages((prev) => {
+      const idx = prev.length - 1;
+      if (prev[idx]?.role === "assistant") return prev.slice(0, idx);
+      return prev;
+    });
+    setTimeout(() => handleSend(lastUserMsg.content), 100);
+  };
+
+  const handleClearChat = () => {
+    setMessages([]);
+    setCurrentProjectId(null);
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); }
   };
@@ -163,15 +182,43 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
   const activeMode = MODES.find((m) => m.id === mode)!;
   const ActiveIcon = activeMode.icon;
 
+  const placeholders: Record<ChatMode, string> = {
+    "all": "Say hi or describe what to build...",
+    "vibe-code": "Describe what to build...",
+    "chat": "Ask anything...",
+    "explain": "Paste code to explain...",
+    "review": "Paste code to review...",
+    "debug": "Describe the bug or paste code...",
+  };
+
   return (
     <div className="flex flex-col h-full">
+      {/* Top bar with clear chat */}
+      {!isEmpty && (
+        <div className="flex items-center justify-end px-4 pt-2">
+          <button
+            onClick={handleClearChat}
+            className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-surface-1 transition-all"
+          >
+            <Trash2 size={12} />
+            New chat
+          </button>
+        </div>
+      )}
+
       <div className="flex-1 overflow-y-auto px-4 pb-4">
         {isEmpty ? (
           <EmptyState onSuggestionClick={(s) => handleSend(s)} />
         ) : (
           <div className="space-y-4 pt-4">
             {messages.map((msg) => (
-              <MessageBubble key={msg.id} message={msg} isLoggedIn={!!user} onOpenPreview={handleOpenPreview} />
+              <MessageBubble
+                key={msg.id}
+                message={msg}
+                isLoggedIn={!!user}
+                onOpenPreview={handleOpenPreview}
+                onRetry={msg.role === "assistant" && msg.id !== "streaming" ? handleRetry : undefined}
+              />
             ))}
             {isLoading && messages[messages.length - 1]?.role !== "assistant" && <LoadingIndicator />}
             <div ref={messagesEndRef} />
@@ -195,7 +242,7 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
             <motion.div
               initial={{ opacity: 0, y: 4 }}
               animate={{ opacity: 1, y: 0 }}
-              className="absolute bottom-full left-0 mb-1 w-48 rounded-xl border border-border bg-background shadow-lg overflow-hidden z-50"
+              className="absolute bottom-full left-0 mb-1 w-52 rounded-xl border border-border bg-background shadow-lg overflow-hidden z-50"
             >
               {MODES.map((m) => {
                 const Icon = m.icon;
@@ -224,11 +271,7 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder={
-              mode === "vibe-code" ? "Describe what to build..."
-              : mode === "chat" ? "Ask anything..."
-              : "Say hi or describe what to build..."
-            }
+            placeholder={placeholders[mode]}
             rows={1}
             className="flex-1 resize-none bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none max-h-32"
           />
