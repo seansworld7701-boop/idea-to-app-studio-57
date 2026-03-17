@@ -1,13 +1,13 @@
 import { motion } from "framer-motion";
 import logo from "@/assets/logo.png";
-import { ArrowRight, Sparkles } from "lucide-react";
+import { ArrowRight, Sparkles, Globe, Zap, Gamepad2, Code2, type LucideIcon } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
-const FEATURES = [
-  { title: "Websites", desc: "Landing pages, portfolios, blogs", emoji: "🌐" },
-  { title: "Web Apps", desc: "Todo apps, dashboards, tools", emoji: "⚡" },
-  { title: "Games", desc: "Canvas games, puzzles, arcades", emoji: "🎮" },
-  { title: "Code", desc: "Python, Java, Rust, Go & more", emoji: "🧠" },
+const FEATURES: { title: string; desc: string; icon: LucideIcon }[] = [
+  { title: "Websites", desc: "Landing pages, portfolios, blogs", icon: Globe },
+  { title: "Web Apps", desc: "Todo apps, dashboards, tools", icon: Zap },
+  { title: "Games", desc: "Canvas games, puzzles, arcades", icon: Gamepad2 },
+  { title: "Code", desc: "Python, Java, Rust, Go & more", icon: Code2 },
 ];
 
 const QUICK_START = [
