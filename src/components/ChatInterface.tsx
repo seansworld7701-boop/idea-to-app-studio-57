@@ -379,7 +379,7 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
   };
 
   // Override mic stop to also stop recognition
-  const origHandleMicToggle = handleMicToggle;
+  // Clean up mic on unmount
   // Clean up: stop recognition when stopping
   useEffect(() => {
     return () => {
