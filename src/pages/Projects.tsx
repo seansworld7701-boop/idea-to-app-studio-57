@@ -125,6 +125,63 @@ const ProjectsPage = () => {
     setSharing(null);
   };
 
+  const handleHost = async (p: Project) => {
+    const slug = slugInput.trim().toLowerCase().replace(/[^a-z0-9-]/g, "").replace(/--+/g, "-");
+    if (!slug || slug.length < 2) {
+      toast({ title: "Invalid name", description: "Use at least 2 characters (a-z, 0-9, hyphens)", variant: "destructive" });
+      return;
+    }
+    if (p.files.length === 0) {
+      toast({ title: "No files", description: "This project has no files to host", variant: "destructive" });
+      return;
+    }
+
+    try {
+      const { error } = await supabase.from("projects").update({
+        is_hosted: true,
+        slug,
+      }).eq("id", p.id);
+
+      if (error) {
+        if (error.code === "23505") {
+          toast({ title: "Name taken", description: "This app name is already in use. Try another.", variant: "destructive" });
+        } else {
+          throw error;
+        }
+        return;
+      }
+
+      setProjects((prev) => prev.map((proj) =>
+        proj.id === p.id ? { ...proj, is_hosted: true, slug } : proj
+      ));
+      const url = `${window.location.origin}/app/${slug}`;
+      await navigator.clipboard.writeText(url);
+      toast({ title: "App published!", description: "Link copied to clipboard" });
+      setHostingProject(null);
+      setSlugInput("");
+    } catch {
+      toast({ title: "Error", description: "Failed to publish app", variant: "destructive" });
+    }
+  };
+
+  const handleUnhost = async (p: Project) => {
+    try {
+      await supabase.from("projects").update({ is_hosted: false, slug: null }).eq("id", p.id);
+      setProjects((prev) => prev.map((proj) =>
+        proj.id === p.id ? { ...proj, is_hosted: false, slug: null } : proj
+      ));
+      toast({ title: "App unpublished" });
+    } catch {
+      toast({ title: "Error", description: "Failed to unpublish", variant: "destructive" });
+    }
+  };
+
+  const copyHostedUrl = async (slug: string) => {
+    const url = `${window.location.origin}/app/${slug}`;
+    await navigator.clipboard.writeText(url);
+    toast({ title: "Link copied!" });
+  };
+
   // Route guard handles unauthenticated state
   if (!user) return null;
 
