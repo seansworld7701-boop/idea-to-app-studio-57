@@ -52,8 +52,7 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
   const [showHistory, setShowHistory] = useState(false);
   const [chatHistory, setChatHistory] = useState<{ id: string; title: string; updated_at: string }[]>([]);
   const [isRecording, setIsRecording] = useState(false);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const audioChunksRef = useRef<Blob[]>([]);
+  const recognitionRef = useRef<any>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -304,90 +303,59 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
     setAttachments([]);
   };
 
-  const handleMicToggle = async () => {
+  const handleMicToggle = () => {
     if (isRecording) {
-      mediaRecorderRef.current?.stop();
-      (mediaRecorderRef as any).recognition?.stop?.();
+      recognitionRef.current?.stop();
       setIsRecording(false);
       return;
     }
 
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream);
-      mediaRecorderRef.current = mediaRecorder;
-      audioChunksRef.current = [];
-
-      mediaRecorder.ondataavailable = (e) => {
-        if (e.data.size > 0) audioChunksRef.current.push(e.data);
-      };
-
-      mediaRecorder.onstop = async () => {
-        stream.getTracks().forEach((t) => t.stop());
-        const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm" });
-
-        // Use browser SpeechRecognition API for voice-to-text
-        if ("webkitSpeechRecognition" in window || "SpeechRecognition" in window) {
-          // Already handled by the live recognition below
-          return;
-        }
-        toast({ title: "Voice input", description: "Speech recognition not supported in this browser", variant: "destructive" });
-      };
-
-      // Use Web Speech API for live transcription
-      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-      if (SpeechRecognition) {
-        const recognition = new SpeechRecognition();
-        recognition.continuous = true;
-        recognition.interimResults = true;
-        recognition.lang = "en-US";
-
-        recognition.onresult = (event: any) => {
-          let transcript = "";
-          for (let i = 0; i < event.results.length; i++) {
-            transcript += event.results[i][0].transcript;
-          }
-          setInput((prev) => {
-            // Replace from the start of voice input
-            const base = prev.replace(/\[listening...\]$/, "").trim();
-            return base ? `${base} ${transcript}` : transcript;
-          });
-        };
-
-        recognition.onerror = () => {
-          setIsRecording(false);
-          stream.getTracks().forEach((t) => t.stop());
-        };
-
-        recognition.onend = () => {
-          setIsRecording(false);
-          stream.getTracks().forEach((t) => t.stop());
-        };
-
-        // Store recognition ref for stopping
-        (mediaRecorderRef as any).recognition = recognition;
-        recognition.start();
-        mediaRecorder.start();
-        setIsRecording(true);
-      } else {
-        stream.getTracks().forEach((t) => t.stop());
-        toast({ title: "Not supported", description: "Voice input is not supported in this browser", variant: "destructive" });
-      }
-    } catch (err) {
-      toast({ title: "Microphone access denied", description: "Please allow microphone access to use voice input", variant: "destructive" });
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      toast({ title: "Not supported", description: "Voice input is not supported in this browser. Try Chrome.", variant: "destructive" });
+      return;
     }
+
+    const recognition = new SpeechRecognition();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.lang = "en-US";
+    recognitionRef.current = recognition;
+
+    const baseInput = input;
+
+    recognition.onresult = (event: any) => {
+      let final = "";
+      let interim = "";
+      for (let i = 0; i < event.results.length; i++) {
+        if (event.results[i].isFinal) {
+          final += event.results[i][0].transcript;
+        } else {
+          interim += event.results[i][0].transcript;
+        }
+      }
+      const text = (final + interim).trim();
+      setInput(baseInput ? `${baseInput} ${text}` : text);
+    };
+
+    recognition.onerror = (e: any) => {
+      console.error("Speech recognition error:", e.error);
+      setIsRecording(false);
+      if (e.error === "not-allowed") {
+        toast({ title: "Microphone blocked", description: "Please allow microphone access in your browser settings", variant: "destructive" });
+      }
+    };
+
+    recognition.onend = () => {
+      setIsRecording(false);
+    };
+
+    recognition.start();
+    setIsRecording(true);
   };
 
-  // Override mic stop to also stop recognition
-  // Clean up mic on unmount
-  // Clean up: stop recognition when stopping
   useEffect(() => {
-    return () => {
-      if (mediaRecorderRef.current) {
-        mediaRecorderRef.current.stop?.();
-      }
-      (mediaRecorderRef as any).recognition?.stop?.();
-    };
+    return () => { recognitionRef.current?.stop(); };
   }, []);
 
   const handleLoadChat = async (id: string) => {
@@ -580,11 +548,11 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
           </div>
         )}
 
-        <div className="flex items-end gap-2 rounded-2xl border border-border bg-surface-1 px-3 py-2 focus-within:ring-1 focus-within:ring-foreground/20 transition-all">
+        <div className="flex items-center gap-2 rounded-2xl border border-border bg-surface-1 px-3 py-2 focus-within:ring-1 focus-within:ring-foreground/20 transition-all">
           <button
             onClick={() => fileInputRef.current?.click()}
             disabled={isLoading}
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-background/50 transition-all disabled:opacity-30 mb-0"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-background/50 transition-all disabled:opacity-30"
           >
             <Paperclip size={18} />
           </button>
@@ -611,7 +579,7 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
           <button
             onClick={handleMicToggle}
             disabled={isLoading}
-            className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-all disabled:opacity-30 mb-0 ${
+            className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-all disabled:opacity-30 ${
               isRecording
                 ? "bg-red-500 text-white animate-pulse"
                 : "text-muted-foreground hover:text-foreground hover:bg-background/50"
@@ -624,7 +592,7 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
           <button
             onClick={() => handleSend()}
             disabled={(!input.trim() && attachments.length === 0) || isLoading}
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-foreground text-background disabled:opacity-30 active:scale-95 transition-all mb-0"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-foreground text-background disabled:opacity-30 active:scale-95 transition-all"
           >
             {isLoading ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
           </button>
