@@ -592,7 +592,7 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
           <button
             onClick={() => handleSend()}
             disabled={(!input.trim() && attachments.length === 0) || isLoading}
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-foreground text-background disabled:opacity-30 active:scale-95 transition-all mb-0"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-foreground text-background disabled:opacity-30 active:scale-95 transition-all"
           >
             {isLoading ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
           </button>
