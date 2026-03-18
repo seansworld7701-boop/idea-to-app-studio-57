@@ -548,7 +548,7 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
           </div>
         )}
 
-        <div className="flex items-end gap-2 rounded-2xl border border-border bg-surface-1 px-3 py-2 focus-within:ring-1 focus-within:ring-foreground/20 transition-all">
+        <div className="flex items-center gap-2 rounded-2xl border border-border bg-surface-1 px-3 py-2 focus-within:ring-1 focus-within:ring-foreground/20 transition-all">
           <button
             onClick={() => fileInputRef.current?.click()}
             disabled={isLoading}
