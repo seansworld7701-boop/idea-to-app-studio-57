@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import { Mail, Lock, ArrowRight, Loader2 } from "lucide-react";
+import { Mail, Lock, ArrowRight, Loader2, Eye, EyeOff } from "lucide-react";
 import { motion } from "framer-motion";
 import { useNavigate, useLocation } from "react-router-dom";
 import logo from "@/assets/logo.png";
@@ -12,6 +12,7 @@ const Auth = () => {
   const [mode, setMode] = useState<Mode>("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
@@ -34,10 +35,24 @@ const Auth = () => {
           setLoading(false);
           return;
         }
-        const { error } = await supabase.auth.signUp({ email: email.trim(), password });
+        const { data, error } = await supabase.auth.signUp({ email: email.trim(), password });
         if (error) throw error;
-        toast({ title: "Account created!" });
-        navigate(from, { replace: true });
+
+        // With auto-confirm enabled, user should be logged in immediately
+        if (data.session) {
+          toast({ title: "Account created! Welcome to Dust AI 🎉" });
+          navigate(from, { replace: true });
+        } else if (data.user && !data.session) {
+          // Fallback: auto-confirm might not be enabled, try signing in
+          const { error: loginError } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+          if (loginError) {
+            toast({ title: "Account created!", description: "Please sign in with your credentials." });
+            setMode("login");
+          } else {
+            toast({ title: "Welcome to Dust AI! 🎉" });
+            navigate(from, { replace: true });
+          }
+        }
       }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Something went wrong";
@@ -80,7 +95,7 @@ const Auth = () => {
             <div className="flex items-center gap-3 rounded-xl border border-border bg-surface-1 px-4 py-3 focus-within:border-foreground/20 transition-colors">
               <Lock size={18} className="text-muted-foreground shrink-0" />
               <input
-                type="password"
+                type={showPassword ? "text" : "password"}
                 placeholder="Password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -89,6 +104,13 @@ const Auth = () => {
                 required
                 autoComplete={mode === "login" ? "current-password" : "new-password"}
               />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="text-muted-foreground hover:text-foreground transition-colors"
+              >
+                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
             </div>
           </div>
 
