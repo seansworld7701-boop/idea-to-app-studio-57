@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Send, Loader2, ChevronDown, Sparkles, Braces, MessageCircle, FileSearch, ScanEye, Wrench, Trash2, Paperclip, Image as ImageIcon, X } from "lucide-react";
+import { Send, Loader2, ChevronDown, Sparkles, Braces, MessageCircle, FileSearch, ScanEye, Wrench, Trash2, Paperclip, X, History } from "lucide-react";
 import { motion } from "framer-motion";
 import { streamChat, generateImage, fileToBase64, parseAIResponse, type Msg, type ChatMode, type ContentPart } from "@/lib/ai-stream";
 import { toast } from "@/hooks/use-toast";
@@ -21,15 +21,15 @@ const MODES: { id: ChatMode; label: string; icon: typeof Braces; desc: string }[
 
 interface Attachment {
   file: File;
-  preview: string; // data URL for images, empty for other files
+  preview: string;
   type: "image" | "file";
 }
 
-interface Message {
+export interface Message {
   id: string;
   role: "user" | "assistant";
   content: string;
-  images?: string[]; // base64 image URLs for display
+  images?: string[];
   attachments?: { name: string; preview: string; type: string }[];
 }
 
@@ -49,6 +49,8 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
   const [currentProjectId, setCurrentProjectId] = useState<string | null>(projectId || null);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const [chatHistory, setChatHistory] = useState<{ id: string; title: string; updated_at: string }[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -85,12 +87,29 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
     }
   }, [initialPrompt]);
 
+  // Load chat history for the sidebar
+  const loadChatHistory = useCallback(async () => {
+    if (!user) return;
+    const { data } = await supabase
+      .from("projects")
+      .select("id, title, updated_at")
+      .eq("user_id", user.id)
+      .order("updated_at", { ascending: false })
+      .limit(20);
+    if (data) setChatHistory(data);
+  }, [user]);
+
+  useEffect(() => {
+    if (showHistory) loadChatHistory();
+  }, [showHistory, loadChatHistory]);
+
   const saveProject = useCallback(async (allMessages: Message[], prompt: string, assistantContent: string) => {
     if (!user) return;
     const { files } = parseAIResponse(assistantContent);
     const title = files.length > 0
       ? files[0]?.name.replace(/\.\w+$/, "") || "Untitled"
       : prompt.slice(0, 50) || "Chat";
+    // Don't store base64 images in conversations (too large)
     const conversations = allMessages.map((m) => ({ role: m.role, content: m.content }));
 
     try {
@@ -98,6 +117,7 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
         await supabase.from("projects").update({
           files: files.length > 0 ? (files as any) : undefined,
           conversations: conversations as any,
+          updated_at: new Date().toISOString(),
         }).eq("id", currentProjectId);
       } else {
         const { data } = await supabase.from("projects").insert({
@@ -159,7 +179,6 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
     const msgText = (text || input).trim();
     if ((!msgText && attachments.length === 0) || isLoading) return;
 
-    // Build user message content
     const userAttachments = attachments.map((a) => ({
       name: a.file.name,
       preview: a.preview,
@@ -183,7 +202,7 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
     setAttachments([]);
     setIsLoading(true);
 
-    // Check if this is an image generation request
+    // Image generation request
     if (detectImageGenRequest(msgText) && currentAttachments.length === 0) {
       setIsGeneratingImage(true);
       try {
@@ -211,7 +230,6 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
     // Build multimodal message for AI
     const buildMsgContent = async (): Promise<Msg[]> => {
       const history: Msg[] = [];
-
       for (const m of newMessages) {
         if (m.role === "user" && m.images && m.images.length > 0) {
           const parts: ContentPart[] = [{ type: "text", text: m.content || "What is this?" }];
@@ -283,6 +301,26 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
     setAttachments([]);
   };
 
+  const handleLoadChat = async (id: string) => {
+    const { data } = await supabase
+      .from("projects")
+      .select("id, conversations")
+      .eq("id", id)
+      .single();
+
+    if (data?.conversations && Array.isArray(data.conversations)) {
+      setMessages(
+        (data.conversations as any[]).map((m: any) => ({
+          id: crypto.randomUUID(),
+          role: m.role,
+          content: m.content,
+        }))
+      );
+      setCurrentProjectId(data.id);
+    }
+    setShowHistory(false);
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); }
   };
@@ -305,10 +343,17 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
   };
 
   return (
-    <div className="flex flex-col h-full">
-      {/* Top bar with clear chat */}
+    <div className="flex flex-col h-full relative">
+      {/* Top bar */}
       {!isEmpty && (
-        <div className="flex items-center justify-end px-4 pt-2">
+        <div className="flex items-center justify-between px-4 pt-2">
+          <button
+            onClick={() => setShowHistory(!showHistory)}
+            className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-surface-1 transition-all"
+          >
+            <History size={12} />
+            History
+          </button>
           <button
             onClick={handleClearChat}
             className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-surface-1 transition-all"
@@ -319,7 +364,42 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
         </div>
       )}
 
-      <div className="flex-1 overflow-y-auto px-4 pb-4">
+      {/* Chat history sidebar */}
+      {showHistory && (
+        <motion.div
+          initial={{ opacity: 0, x: -12 }}
+          animate={{ opacity: 1, x: 0 }}
+          className="absolute top-10 left-2 right-2 z-40 rounded-xl border border-border bg-background shadow-xl max-h-60 overflow-y-auto"
+        >
+          <div className="p-2 space-y-0.5">
+            <div className="px-2 py-1.5 text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+              Recent Chats
+            </div>
+            {chatHistory.length === 0 ? (
+              <div className="px-2 py-3 text-xs text-muted-foreground text-center">No previous chats</div>
+            ) : (
+              chatHistory.map((chat) => (
+                <button
+                  key={chat.id}
+                  onClick={() => handleLoadChat(chat.id)}
+                  className={`flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-left text-xs transition-colors ${
+                    currentProjectId === chat.id
+                      ? "bg-surface-1 text-foreground"
+                      : "text-muted-foreground hover:text-foreground hover:bg-surface-1/50"
+                  }`}
+                >
+                  <span className="truncate flex-1">{chat.title}</span>
+                  <span className="text-[9px] text-muted-foreground/60 ml-2 shrink-0">
+                    {new Date(chat.updated_at).toLocaleDateString()}
+                  </span>
+                </button>
+              ))
+            )}
+          </div>
+        </motion.div>
+      )}
+
+      <div className="flex-1 overflow-y-auto px-4 pb-4" onClick={() => showHistory && setShowHistory(false)}>
         {isEmpty ? (
           <EmptyState onSuggestionClick={(s) => handleSend(s)} />
         ) : (
@@ -412,7 +492,6 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
         )}
 
         <div className="flex items-end gap-2 rounded-2xl border border-border bg-surface-1 px-3 py-2 focus-within:ring-1 focus-within:ring-foreground/20 transition-all">
-          {/* Attachment button */}
           <button
             onClick={() => fileInputRef.current?.click()}
             disabled={isLoading}
