@@ -11,7 +11,7 @@ const navItems = [
 ];
 
 const HIDDEN_ROUTES = ["/auth", "/auth/callback", "/reset-password"];
-const HIDDEN_PREFIXES = ["/shared/"];
+const HIDDEN_PREFIXES = ["/shared/", "/app/"];
 
 const BottomNav = () => {
   const location = useLocation();
