@@ -18,10 +18,60 @@ interface ArtifactCardProps {
 }
 
 function buildPreviewHtml(files: ArtifactFile[]): string {
-  const html = files.find((f) => f.name.endsWith(".html"))?.content || "";
-  const css = files.find((f) => f.name.endsWith(".css"))?.content || "";
-  const js = files.find((f) => f.name.endsWith(".js"))?.content || "";
-  return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:system-ui,sans-serif;background:#0a0a0a;color:#fff}${css}</style></head><body>${html}<script>${js}<\/script></body></html>`;
+  const htmlFile = files.find((f) => f.name.endsWith(".html"));
+  const cssFile = files.find((f) => f.name.endsWith(".css"));
+  const jsFile = files.find((f) => f.name.endsWith(".js"));
+
+  // If the HTML file is a complete document (has <!DOCTYPE or <html), use it as base
+  // and inject CSS/JS if they're separate files
+  if (htmlFile) {
+    let html = htmlFile.content;
+    const isFullDoc = /<!doctype|<html/i.test(html);
+
+    if (isFullDoc) {
+      // Inject separate CSS into <head> if exists
+      if (cssFile) {
+        const styleTag = `<style>${cssFile.content}</style>`;
+        if (html.includes("</head>")) {
+          html = html.replace("</head>", `${styleTag}</head>`);
+        } else if (html.includes("<body")) {
+          html = html.replace(/<body/i, `${styleTag}<body`);
+        }
+      }
+      // Inject separate JS before </body> if exists
+      if (jsFile) {
+        const scriptTag = `<script>${jsFile.content}<\/script>`;
+        if (html.includes("</body>")) {
+          html = html.replace("</body>", `${scriptTag}</body>`);
+        } else {
+          html += scriptTag;
+        }
+      }
+      return html;
+    }
+  }
+
+  // Fallback: build a complete document from parts
+  const htmlContent = htmlFile?.content || "";
+  const css = cssFile?.content || "";
+  const js = jsFile?.content || "";
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#fff}
+${css}
+</style>
+</head>
+<body>
+${htmlContent}
+<script>${js}<\/script>
+</body>
+</html>`;
 }
 
 const ArtifactCard = ({ title, files, isLoggedIn, onOpenPreview }: ArtifactCardProps) => {

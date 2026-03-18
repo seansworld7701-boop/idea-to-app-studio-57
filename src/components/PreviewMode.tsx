@@ -1,4 +1,4 @@
-import { MessageSquare, RotateCcw, Maximize2, Minimize2 } from "lucide-react";
+import { MessageSquare, RotateCcw, Maximize2, Minimize2, ExternalLink } from "lucide-react";
 import { useState } from "react";
 import type { PreviewData } from "@/pages/Build";
 
@@ -10,11 +10,29 @@ interface PreviewModeProps {
 const PreviewMode = ({ data, onBack }: PreviewModeProps) => {
   const [isMobile, setIsMobile] = useState(false);
 
+  // Create a blob URL so the iframe can load external CDN scripts (Three.js etc.)
+  // srcdoc with sandbox="allow-scripts" blocks external resource loading
+  const [blobUrl] = useState(() => {
+    const blob = new Blob([data.html], { type: "text/html" });
+    return URL.createObjectURL(blob);
+  });
+
   const handleRefresh = () => {
     const iframe = document.querySelector<HTMLIFrameElement>("#preview-frame");
     if (iframe) {
-      iframe.srcdoc = "";
-      requestAnimationFrame(() => { iframe.srcdoc = data.html; });
+      iframe.src = "about:blank";
+      requestAnimationFrame(() => {
+        const newBlob = new Blob([data.html], { type: "text/html" });
+        iframe.src = URL.createObjectURL(newBlob);
+      });
+    }
+  };
+
+  const handleOpenExternal = () => {
+    const newWindow = window.open("", "_blank");
+    if (newWindow) {
+      newWindow.document.write(data.html);
+      newWindow.document.close();
     }
   };
 
@@ -30,11 +48,18 @@ const PreviewMode = ({ data, onBack }: PreviewModeProps) => {
           Back to Chat
         </button>
 
-        <span className="text-xs font-semibold text-foreground truncate max-w-[140px]">
+        <span className="text-xs font-semibold text-foreground truncate max-w-[100px]">
           {data.title}
         </span>
 
         <div className="flex items-center gap-1">
+          <button
+            onClick={handleOpenExternal}
+            className="flex items-center justify-center h-8 w-8 rounded-lg border border-border text-muted-foreground hover:text-foreground transition-colors"
+            title="Open in new tab"
+          >
+            <ExternalLink size={14} />
+          </button>
           <button
             onClick={() => setIsMobile(!isMobile)}
             className="flex items-center justify-center h-8 w-8 rounded-lg border border-border text-muted-foreground hover:text-foreground transition-colors"
@@ -50,15 +75,15 @@ const PreviewMode = ({ data, onBack }: PreviewModeProps) => {
         </div>
       </div>
 
-      {/* Preview iframe */}
+      {/* Preview iframe - using blob URL instead of srcdoc to allow external scripts */}
       <div className="flex-1 flex items-start justify-center bg-surface-0 overflow-hidden p-0">
         <iframe
           id="preview-frame"
-          srcDoc={data.html}
+          src={blobUrl}
           className={`h-full bg-background border-0 transition-all duration-300 ${
             isMobile ? "w-[375px] rounded-xl border border-border mt-4 shadow-2xl" : "w-full"
           }`}
-          sandbox="allow-scripts"
+          sandbox="allow-scripts allow-same-origin allow-popups allow-modals"
           title="preview"
         />
       </div>
