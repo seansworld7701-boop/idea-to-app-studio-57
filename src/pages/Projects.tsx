@@ -26,6 +26,8 @@ interface Project {
   conversations: Conversation[];
   is_shared: boolean;
   share_id: string | null;
+  is_hosted: boolean;
+  slug: string | null;
   created_at: string;
 }
 
