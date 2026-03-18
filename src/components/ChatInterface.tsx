@@ -552,7 +552,7 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
           <button
             onClick={() => fileInputRef.current?.click()}
             disabled={isLoading}
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-background/50 transition-all disabled:opacity-30 mb-0"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-background/50 transition-all disabled:opacity-30"
           >
             <Paperclip size={18} />
           </button>
