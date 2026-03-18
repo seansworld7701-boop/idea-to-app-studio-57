@@ -48,6 +48,8 @@ const ProjectsPage = () => {
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [sharing, setSharing] = useState<string | null>(null);
+  const [hostingProject, setHostingProject] = useState<string | null>(null);
+  const [slugInput, setSlugInput] = useState("");
 
   useEffect(() => {
     if (!user) { setLoading(false); return; }
