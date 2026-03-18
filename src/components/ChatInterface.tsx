@@ -306,8 +306,8 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
 
   const handleMicToggle = async () => {
     if (isRecording) {
-      // Stop recording
       mediaRecorderRef.current?.stop();
+      (mediaRecorderRef as any).recognition?.stop?.();
       setIsRecording(false);
       return;
     }
