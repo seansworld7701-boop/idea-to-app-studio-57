@@ -303,90 +303,59 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
     setAttachments([]);
   };
 
-  const handleMicToggle = async () => {
+  const handleMicToggle = () => {
     if (isRecording) {
-      mediaRecorderRef.current?.stop();
-      (mediaRecorderRef as any).recognition?.stop?.();
+      recognitionRef.current?.stop();
       setIsRecording(false);
       return;
     }
 
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream);
-      mediaRecorderRef.current = mediaRecorder;
-      audioChunksRef.current = [];
-
-      mediaRecorder.ondataavailable = (e) => {
-        if (e.data.size > 0) audioChunksRef.current.push(e.data);
-      };
-
-      mediaRecorder.onstop = async () => {
-        stream.getTracks().forEach((t) => t.stop());
-        const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm" });
-
-        // Use browser SpeechRecognition API for voice-to-text
-        if ("webkitSpeechRecognition" in window || "SpeechRecognition" in window) {
-          // Already handled by the live recognition below
-          return;
-        }
-        toast({ title: "Voice input", description: "Speech recognition not supported in this browser", variant: "destructive" });
-      };
-
-      // Use Web Speech API for live transcription
-      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-      if (SpeechRecognition) {
-        const recognition = new SpeechRecognition();
-        recognition.continuous = true;
-        recognition.interimResults = true;
-        recognition.lang = "en-US";
-
-        recognition.onresult = (event: any) => {
-          let transcript = "";
-          for (let i = 0; i < event.results.length; i++) {
-            transcript += event.results[i][0].transcript;
-          }
-          setInput((prev) => {
-            // Replace from the start of voice input
-            const base = prev.replace(/\[listening...\]$/, "").trim();
-            return base ? `${base} ${transcript}` : transcript;
-          });
-        };
-
-        recognition.onerror = () => {
-          setIsRecording(false);
-          stream.getTracks().forEach((t) => t.stop());
-        };
-
-        recognition.onend = () => {
-          setIsRecording(false);
-          stream.getTracks().forEach((t) => t.stop());
-        };
-
-        // Store recognition ref for stopping
-        (mediaRecorderRef as any).recognition = recognition;
-        recognition.start();
-        mediaRecorder.start();
-        setIsRecording(true);
-      } else {
-        stream.getTracks().forEach((t) => t.stop());
-        toast({ title: "Not supported", description: "Voice input is not supported in this browser", variant: "destructive" });
-      }
-    } catch (err) {
-      toast({ title: "Microphone access denied", description: "Please allow microphone access to use voice input", variant: "destructive" });
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      toast({ title: "Not supported", description: "Voice input is not supported in this browser. Try Chrome.", variant: "destructive" });
+      return;
     }
+
+    const recognition = new SpeechRecognition();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.lang = "en-US";
+    recognitionRef.current = recognition;
+
+    const baseInput = input;
+
+    recognition.onresult = (event: any) => {
+      let final = "";
+      let interim = "";
+      for (let i = 0; i < event.results.length; i++) {
+        if (event.results[i].isFinal) {
+          final += event.results[i][0].transcript;
+        } else {
+          interim += event.results[i][0].transcript;
+        }
+      }
+      const text = (final + interim).trim();
+      setInput(baseInput ? `${baseInput} ${text}` : text);
+    };
+
+    recognition.onerror = (e: any) => {
+      console.error("Speech recognition error:", e.error);
+      setIsRecording(false);
+      if (e.error === "not-allowed") {
+        toast({ title: "Microphone blocked", description: "Please allow microphone access in your browser settings", variant: "destructive" });
+      }
+    };
+
+    recognition.onend = () => {
+      setIsRecording(false);
+    };
+
+    recognition.start();
+    setIsRecording(true);
   };
 
-  // Override mic stop to also stop recognition
-  // Clean up mic on unmount
-  // Clean up: stop recognition when stopping
   useEffect(() => {
-    return () => {
-      if (mediaRecorderRef.current) {
-        mediaRecorderRef.current.stop?.();
-      }
-      (mediaRecorderRef as any).recognition?.stop?.();
-    };
+    return () => { recognitionRef.current?.stop(); };
   }, []);
 
   const handleLoadChat = async (id: string) => {
