@@ -579,7 +579,7 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
           <button
             onClick={handleMicToggle}
             disabled={isLoading}
-            className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-all disabled:opacity-30 mb-0 ${
+            className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-all disabled:opacity-30 ${
               isRecording
                 ? "bg-red-500 text-white animate-pulse"
                 : "text-muted-foreground hover:text-foreground hover:bg-background/50"
