@@ -498,7 +498,7 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
           <button
             onClick={() => fileInputRef.current?.click()}
             disabled={isLoading}
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-background/50 transition-all disabled:opacity-30"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-background/50 transition-all disabled:opacity-30 mb-0"
           >
             <Paperclip size={18} />
           </button>
@@ -518,12 +518,27 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
             onKeyDown={handleKeyDown}
             placeholder={placeholders[mode]}
             rows={1}
-            className="flex-1 resize-none bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none max-h-32"
+            className="flex-1 resize-none bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none max-h-32 py-1 leading-normal"
           />
+
+          {/* Mic button */}
+          <button
+            onClick={handleMicToggle}
+            disabled={isLoading}
+            className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-all disabled:opacity-30 mb-0 ${
+              isRecording
+                ? "bg-red-500 text-white animate-pulse"
+                : "text-muted-foreground hover:text-foreground hover:bg-background/50"
+            }`}
+            title={isRecording ? "Stop recording" : "Voice input"}
+          >
+            {isRecording ? <MicOff size={16} /> : <Mic size={16} />}
+          </button>
+
           <button
             onClick={() => handleSend()}
             disabled={(!input.trim() && attachments.length === 0) || isLoading}
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-foreground text-background disabled:opacity-30 active:scale-95 transition-all"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-foreground text-background disabled:opacity-30 active:scale-95 transition-all mb-0"
           >
             {isLoading ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
           </button>
