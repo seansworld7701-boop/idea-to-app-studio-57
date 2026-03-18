@@ -16,6 +16,7 @@ import AuthPage from "@/pages/Auth";
 import ResetPassword from "@/pages/ResetPassword";
 import AuthCallback from "@/pages/AuthCallback";
 import SharedProject from "@/pages/SharedProject";
+import HostedApp from "@/pages/HostedApp";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -40,6 +41,7 @@ const App = () => (
                   <Route path="/auth/callback" element={<AuthCallback />} />
                   <Route path="/reset-password" element={<ResetPassword />} />
                   <Route path="/shared/:shareId" element={<SharedProject />} />
+                  <Route path="/app/:slug" element={<HostedApp />} />
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </div>

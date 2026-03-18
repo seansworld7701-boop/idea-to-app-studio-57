@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { FolderOpen, Trash2, Loader2, ArrowRight, MessageSquare, Share2, Check } from "lucide-react";
+import { FolderOpen, Trash2, Loader2, ArrowRight, MessageSquare, Share2, Check, Globe, Link2, Copy } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -26,6 +26,8 @@ interface Project {
   conversations: Conversation[];
   is_shared: boolean;
   share_id: string | null;
+  is_hosted: boolean;
+  slug: string | null;
   created_at: string;
 }
 
@@ -46,6 +48,8 @@ const ProjectsPage = () => {
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [sharing, setSharing] = useState<string | null>(null);
+  const [hostingProject, setHostingProject] = useState<string | null>(null);
+  const [slugInput, setSlugInput] = useState("");
 
   useEffect(() => {
     if (!user) { setLoading(false); return; }
@@ -121,6 +125,63 @@ const ProjectsPage = () => {
     setSharing(null);
   };
 
+  const handleHost = async (p: Project) => {
+    const slug = slugInput.trim().toLowerCase().replace(/[^a-z0-9-]/g, "").replace(/--+/g, "-");
+    if (!slug || slug.length < 2) {
+      toast({ title: "Invalid name", description: "Use at least 2 characters (a-z, 0-9, hyphens)", variant: "destructive" });
+      return;
+    }
+    if (p.files.length === 0) {
+      toast({ title: "No files", description: "This project has no files to host", variant: "destructive" });
+      return;
+    }
+
+    try {
+      const { error } = await supabase.from("projects").update({
+        is_hosted: true,
+        slug,
+      }).eq("id", p.id);
+
+      if (error) {
+        if (error.code === "23505") {
+          toast({ title: "Name taken", description: "This app name is already in use. Try another.", variant: "destructive" });
+        } else {
+          throw error;
+        }
+        return;
+      }
+
+      setProjects((prev) => prev.map((proj) =>
+        proj.id === p.id ? { ...proj, is_hosted: true, slug } : proj
+      ));
+      const url = `${window.location.origin}/app/${slug}`;
+      await navigator.clipboard.writeText(url);
+      toast({ title: "App published!", description: "Link copied to clipboard" });
+      setHostingProject(null);
+      setSlugInput("");
+    } catch {
+      toast({ title: "Error", description: "Failed to publish app", variant: "destructive" });
+    }
+  };
+
+  const handleUnhost = async (p: Project) => {
+    try {
+      await supabase.from("projects").update({ is_hosted: false, slug: null }).eq("id", p.id);
+      setProjects((prev) => prev.map((proj) =>
+        proj.id === p.id ? { ...proj, is_hosted: false, slug: null } : proj
+      ));
+      toast({ title: "App unpublished" });
+    } catch {
+      toast({ title: "Error", description: "Failed to unpublish", variant: "destructive" });
+    }
+  };
+
+  const copyHostedUrl = async (slug: string) => {
+    const url = `${window.location.origin}/app/${slug}`;
+    await navigator.clipboard.writeText(url);
+    toast({ title: "Link copied!" });
+  };
+
   // Route guard handles unauthenticated state
   if (!user) return null;
 
@@ -182,6 +243,20 @@ const ProjectsPage = () => {
                   </p>
                 </div>
               </div>
+              {/* Hosted badge */}
+              {p.is_hosted && p.slug && (
+                <div className="flex items-center gap-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1.5">
+                  <Globe size={12} className="text-emerald-400" />
+                  <span className="text-[10px] font-mono text-emerald-400 truncate">/app/{p.slug}</span>
+                  <button
+                    onClick={() => copyHostedUrl(p.slug!)}
+                    className="ml-auto p-0.5 text-emerald-400/60 hover:text-emerald-400 transition-colors"
+                  >
+                    <Copy size={11} />
+                  </button>
+                </div>
+              )}
+
               <div className="flex items-center gap-1.5">
                 <button
                   onClick={() => handleContinue(p)}
@@ -190,13 +265,32 @@ const ProjectsPage = () => {
                   <MessageSquare size={13} />
                   Continue
                 </button>
+
+                {/* Host / Unhost button */}
+                {p.is_hosted ? (
+                  <button
+                    onClick={() => handleUnhost(p)}
+                    className="flex items-center gap-1.5 rounded-lg border border-emerald-500/30 px-3 py-2 text-xs text-emerald-400 hover:bg-emerald-500/10 transition-colors"
+                  >
+                    <Globe size={13} />
+                    Live
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => { setHostingProject(hostingProject === p.id ? null : p.id); setSlugInput(p.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 30)); }}
+                    className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    <Globe size={13} />
+                    Host
+                  </button>
+                )}
+
                 <button
                   onClick={() => handleShare(p)}
                   disabled={sharing === p.id}
                   className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
                 >
                   {p.is_shared ? <Check size={13} /> : <Share2 size={13} />}
-                  {p.is_shared ? "Copied" : "Share"}
                 </button>
                 <button
                   onClick={() => handleDelete(p.id)}
@@ -206,6 +300,33 @@ const ProjectsPage = () => {
                   {deleting === p.id ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
                 </button>
               </div>
+
+              {/* Hosting slug input */}
+              {hostingProject === p.id && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  className="flex items-center gap-2 pt-1"
+                >
+                  <div className="flex items-center flex-1 rounded-lg border border-border bg-surface-2/50 overflow-hidden">
+                    <span className="text-[10px] text-muted-foreground pl-2.5 shrink-0">/app/</span>
+                    <input
+                      type="text"
+                      value={slugInput}
+                      onChange={(e) => setSlugInput(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))}
+                      placeholder="my-app"
+                      className="flex-1 bg-transparent text-xs text-foreground py-2 pr-2 outline-none font-mono"
+                      maxLength={30}
+                    />
+                  </div>
+                  <button
+                    onClick={() => handleHost(p)}
+                    className="rounded-lg bg-foreground px-3 py-2 text-xs font-medium text-background active:scale-[0.97] transition-transform shrink-0"
+                  >
+                    Publish
+                  </button>
+                </motion.div>
+              )}
             </motion.div>
           ))}
         </div>

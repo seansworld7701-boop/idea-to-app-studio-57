@@ -41,9 +41,11 @@ export type Database = {
           created_at: string
           files: Json | null
           id: string
+          is_hosted: boolean
           is_shared: boolean
           prompt: string | null
           share_id: string | null
+          slug: string | null
           title: string
           updated_at: string
           user_id: string
@@ -53,9 +55,11 @@ export type Database = {
           created_at?: string
           files?: Json | null
           id?: string
+          is_hosted?: boolean
           is_shared?: boolean
           prompt?: string | null
           share_id?: string | null
+          slug?: string | null
           title: string
           updated_at?: string
           user_id: string
@@ -65,9 +69,11 @@ export type Database = {
           created_at?: string
           files?: Json | null
           id?: string
+          is_hosted?: boolean
           is_shared?: boolean
           prompt?: string | null
           share_id?: string | null
+          slug?: string | null
           title?: string
           updated_at?: string
           user_id?: string
