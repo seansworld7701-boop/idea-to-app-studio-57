@@ -243,6 +243,20 @@ const ProjectsPage = () => {
                   </p>
                 </div>
               </div>
+              {/* Hosted badge */}
+              {p.is_hosted && p.slug && (
+                <div className="flex items-center gap-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1.5">
+                  <Globe size={12} className="text-emerald-400" />
+                  <span className="text-[10px] font-mono text-emerald-400 truncate">/app/{p.slug}</span>
+                  <button
+                    onClick={() => copyHostedUrl(p.slug!)}
+                    className="ml-auto p-0.5 text-emerald-400/60 hover:text-emerald-400 transition-colors"
+                  >
+                    <Copy size={11} />
+                  </button>
+                </div>
+              )}
+
               <div className="flex items-center gap-1.5">
                 <button
                   onClick={() => handleContinue(p)}
@@ -251,13 +265,32 @@ const ProjectsPage = () => {
                   <MessageSquare size={13} />
                   Continue
                 </button>
+
+                {/* Host / Unhost button */}
+                {p.is_hosted ? (
+                  <button
+                    onClick={() => handleUnhost(p)}
+                    className="flex items-center gap-1.5 rounded-lg border border-emerald-500/30 px-3 py-2 text-xs text-emerald-400 hover:bg-emerald-500/10 transition-colors"
+                  >
+                    <Globe size={13} />
+                    Live
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => { setHostingProject(hostingProject === p.id ? null : p.id); setSlugInput(p.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 30)); }}
+                    className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    <Globe size={13} />
+                    Host
+                  </button>
+                )}
+
                 <button
                   onClick={() => handleShare(p)}
                   disabled={sharing === p.id}
                   className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
                 >
                   {p.is_shared ? <Check size={13} /> : <Share2 size={13} />}
-                  {p.is_shared ? "Copied" : "Share"}
                 </button>
                 <button
                   onClick={() => handleDelete(p.id)}
@@ -267,6 +300,33 @@ const ProjectsPage = () => {
                   {deleting === p.id ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
                 </button>
               </div>
+
+              {/* Hosting slug input */}
+              {hostingProject === p.id && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  className="flex items-center gap-2 pt-1"
+                >
+                  <div className="flex items-center flex-1 rounded-lg border border-border bg-surface-2/50 overflow-hidden">
+                    <span className="text-[10px] text-muted-foreground pl-2.5 shrink-0">/app/</span>
+                    <input
+                      type="text"
+                      value={slugInput}
+                      onChange={(e) => setSlugInput(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))}
+                      placeholder="my-app"
+                      className="flex-1 bg-transparent text-xs text-foreground py-2 pr-2 outline-none font-mono"
+                      maxLength={30}
+                    />
+                  </div>
+                  <button
+                    onClick={() => handleHost(p)}
+                    className="rounded-lg bg-foreground px-3 py-2 text-xs font-medium text-background active:scale-[0.97] transition-transform shrink-0"
+                  >
+                    Publish
+                  </button>
+                </motion.div>
+              )}
             </motion.div>
           ))}
         </div>
