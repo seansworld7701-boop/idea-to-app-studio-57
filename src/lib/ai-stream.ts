@@ -1,6 +1,12 @@
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
+const IMAGE_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-image`;
 
-export type Msg = { role: "user" | "assistant"; content: string };
+// Content can be a string or multimodal array
+export type ContentPart =
+  | { type: "text"; text: string }
+  | { type: "image_url"; image_url: { url: string } };
+
+export type Msg = { role: "user" | "assistant"; content: string | ContentPart[] };
 export type ChatMode = "all" | "vibe-code" | "chat" | "explain" | "review" | "debug";
 
 export async function streamChat({
@@ -107,6 +113,35 @@ export async function streamChat({
   }
 
   onDone();
+}
+
+/** Generate an image using AI */
+export async function generateImage(prompt: string): Promise<{ text: string; images: { type: string; image_url: { url: string } }[] }> {
+  const resp = await fetch(IMAGE_URL, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+    },
+    body: JSON.stringify({ prompt }),
+  });
+
+  if (!resp.ok) {
+    const err = await resp.json().catch(() => ({ error: "Image generation failed" }));
+    throw new Error(err.error || "Image generation failed");
+  }
+
+  return resp.json();
+}
+
+/** Convert a File to a base64 data URL */
+export function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
 }
 
 /** Parse AI response that may contain ===FILE: name=== blocks */
