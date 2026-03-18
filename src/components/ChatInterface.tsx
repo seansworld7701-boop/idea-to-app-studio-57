@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Send, Loader2, ChevronDown, Sparkles, Braces, MessageCircle, FileSearch, ScanEye, Wrench, Trash2 } from "lucide-react";
+import { Send, Loader2, ChevronDown, Sparkles, Braces, MessageCircle, FileSearch, ScanEye, Wrench, Trash2, Paperclip, Image as ImageIcon, X } from "lucide-react";
 import { motion } from "framer-motion";
-import { streamChat, parseAIResponse, type Msg, type ChatMode } from "@/lib/ai-stream";
+import { streamChat, generateImage, fileToBase64, parseAIResponse, type Msg, type ChatMode, type ContentPart } from "@/lib/ai-stream";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -19,10 +19,18 @@ const MODES: { id: ChatMode; label: string; icon: typeof Braces; desc: string }[
   { id: "debug", label: "Debug", icon: Wrench, desc: "Find & fix bugs" },
 ];
 
+interface Attachment {
+  file: File;
+  preview: string; // data URL for images, empty for other files
+  type: "image" | "file";
+}
+
 interface Message {
   id: string;
   role: "user" | "assistant";
   content: string;
+  images?: string[]; // base64 image URLs for display
+  attachments?: { name: string; preview: string; type: string }[];
 }
 
 interface ChatInterfaceProps {
@@ -39,8 +47,11 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
   const [mode, setMode] = useState<ChatMode>("all");
   const [modeMenuOpen, setModeMenuOpen] = useState(false);
   const [currentProjectId, setCurrentProjectId] = useState<string | null>(projectId || null);
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const [isGeneratingImage, setIsGeneratingImage] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const initialPromptSent = useRef(false);
   const modeMenuRef = useRef<HTMLDivElement>(null);
   const { user } = useAuth();
@@ -103,17 +114,119 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
     }
   }, [user, currentProjectId]);
 
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+
+    const newAttachments: Attachment[] = [];
+    for (const file of Array.from(files)) {
+      if (file.size > 10 * 1024 * 1024) {
+        toast({ title: "File too large", description: `${file.name} exceeds 10MB limit`, variant: "destructive" });
+        continue;
+      }
+      const isImage = file.type.startsWith("image/");
+      const preview = isImage ? await fileToBase64(file) : "";
+      newAttachments.push({ file, preview, type: isImage ? "image" : "file" });
+    }
+
+    setAttachments((prev) => [...prev, ...newAttachments].slice(0, 5));
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const removeAttachment = (index: number) => {
+    setAttachments((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const detectImageGenRequest = (text: string): boolean => {
+    const lower = text.toLowerCase();
+    const patterns = [
+      /generate\s+(an?\s+)?image/,
+      /create\s+(an?\s+)?image/,
+      /draw\s+(me\s+)?(an?\s+)?/,
+      /make\s+(me\s+)?(an?\s+)?image/,
+      /generate\s+(an?\s+)?picture/,
+      /create\s+(an?\s+)?picture/,
+      /make\s+(an?\s+)?picture/,
+      /image\s+of\b/,
+      /picture\s+of\b/,
+      /illustration\s+of\b/,
+      /generate\s+(an?\s+)?illustration/,
+    ];
+    return patterns.some((p) => p.test(lower));
+  };
+
   const handleSend = async (text?: string) => {
     const msgText = (text || input).trim();
-    if (!msgText || isLoading) return;
+    if ((!msgText && attachments.length === 0) || isLoading) return;
 
-    const userMsg: Message = { id: crypto.randomUUID(), role: "user", content: msgText };
+    // Build user message content
+    const userAttachments = attachments.map((a) => ({
+      name: a.file.name,
+      preview: a.preview,
+      type: a.file.type,
+    }));
+
+    const userImages = attachments.filter((a) => a.type === "image").map((a) => a.preview);
+
+    const userMsg: Message = {
+      id: crypto.randomUUID(),
+      role: "user",
+      content: msgText,
+      images: userImages.length > 0 ? userImages : undefined,
+      attachments: userAttachments.length > 0 ? userAttachments : undefined,
+    };
+
     const newMessages = [...messages, userMsg];
     setMessages(newMessages);
     setInput("");
+    const currentAttachments = [...attachments];
+    setAttachments([]);
     setIsLoading(true);
 
-    const history: Msg[] = newMessages.map((m) => ({ role: m.role, content: m.content }));
+    // Check if this is an image generation request
+    if (detectImageGenRequest(msgText) && currentAttachments.length === 0) {
+      setIsGeneratingImage(true);
+      try {
+        const result = await generateImage(msgText);
+        const imageUrls = result.images?.map((img) => img.image_url.url) || [];
+        const assistantMsg: Message = {
+          id: crypto.randomUUID(),
+          role: "assistant",
+          content: result.text || "Here's the generated image:",
+          images: imageUrls,
+        };
+        const final = [...newMessages, assistantMsg];
+        setMessages(final);
+        saveProject(final, msgText, result.text || "");
+      } catch (e) {
+        const errMsg = e instanceof Error ? e.message : "Image generation failed";
+        toast({ title: "Error", description: errMsg, variant: "destructive" });
+      } finally {
+        setIsLoading(false);
+        setIsGeneratingImage(false);
+      }
+      return;
+    }
+
+    // Build multimodal message for AI
+    const buildMsgContent = async (): Promise<Msg[]> => {
+      const history: Msg[] = [];
+
+      for (const m of newMessages) {
+        if (m.role === "user" && m.images && m.images.length > 0) {
+          const parts: ContentPart[] = [{ type: "text", text: m.content || "What is this?" }];
+          for (const imgUrl of m.images) {
+            parts.push({ type: "image_url", image_url: { url: imgUrl } });
+          }
+          history.push({ role: "user", content: parts });
+        } else {
+          history.push({ role: m.role, content: m.content });
+        }
+      }
+      return history;
+    };
+
+    const history = await buildMsgContent();
     let assistantSoFar = "";
 
     try {
@@ -156,7 +269,6 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
     if (messages.length < 2) return;
     const lastUserMsg = [...messages].reverse().find((m) => m.role === "user");
     if (!lastUserMsg) return;
-    // Remove the last assistant message and retry
     setMessages((prev) => {
       const idx = prev.length - 1;
       if (prev[idx]?.role === "assistant") return prev.slice(0, idx);
@@ -168,6 +280,7 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
   const handleClearChat = () => {
     setMessages([]);
     setCurrentProjectId(null);
+    setAttachments([]);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -220,7 +333,9 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
                 onRetry={msg.role === "assistant" && msg.id !== "streaming" ? handleRetry : undefined}
               />
             ))}
-            {isLoading && messages[messages.length - 1]?.role !== "assistant" && <LoadingIndicator />}
+            {isLoading && messages[messages.length - 1]?.role !== "assistant" && (
+              <LoadingIndicator text={isGeneratingImage ? "Generating image..." : undefined} />
+            )}
             <div ref={messagesEndRef} />
           </div>
         )}
@@ -265,7 +380,55 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
             </motion.div>
           )}
         </div>
+
+        {/* Attachment previews */}
+        {attachments.length > 0 && (
+          <div className="flex gap-2 mb-2 overflow-x-auto pb-1">
+            {attachments.map((att, i) => (
+              <div key={i} className="relative shrink-0 group">
+                {att.type === "image" ? (
+                  <img
+                    src={att.preview}
+                    alt={att.file.name}
+                    className="h-16 w-16 rounded-lg object-cover border border-border"
+                  />
+                ) : (
+                  <div className="h-16 w-16 rounded-lg border border-border bg-surface-1 flex flex-col items-center justify-center gap-1 px-1">
+                    <Paperclip size={14} className="text-muted-foreground" />
+                    <span className="text-[8px] text-muted-foreground truncate w-full text-center">
+                      {att.file.name}
+                    </span>
+                  </div>
+                )}
+                <button
+                  onClick={() => removeAttachment(i)}
+                  className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full bg-foreground text-background flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                >
+                  <X size={10} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
         <div className="flex items-end gap-2 rounded-2xl border border-border bg-surface-1 px-3 py-2 focus-within:ring-1 focus-within:ring-foreground/20 transition-all">
+          {/* Attachment button */}
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isLoading}
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:text-foreground hover:bg-background/50 transition-all disabled:opacity-30"
+          >
+            <Paperclip size={18} />
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            accept="image/*,.pdf,.txt,.md,.json,.csv,.xml,.html,.css,.js,.ts,.jsx,.tsx,.py,.java,.cpp,.c,.go,.rs,.sql,.yaml,.yml,.sh"
+            onChange={handleFileSelect}
+            className="hidden"
+          />
+
           <textarea
             ref={textareaRef}
             value={input}
@@ -277,7 +440,7 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
           />
           <button
             onClick={() => handleSend()}
-            disabled={!input.trim() || isLoading}
+            disabled={(!input.trim() && attachments.length === 0) || isLoading}
             className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-foreground text-background disabled:opacity-30 active:scale-95 transition-all"
           >
             {isLoading ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
