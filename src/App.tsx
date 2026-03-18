@@ -41,6 +41,7 @@ const App = () => (
                   <Route path="/auth/callback" element={<AuthCallback />} />
                   <Route path="/reset-password" element={<ResetPassword />} />
                   <Route path="/shared/:shareId" element={<SharedProject />} />
+                  <Route path="/app/:slug" element={<HostedApp />} />
                   <Route path="*" element={<NotFound />} />
                 </Routes>
               </div>
