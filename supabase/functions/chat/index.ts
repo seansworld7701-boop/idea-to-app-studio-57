@@ -16,7 +16,9 @@ Key traits:
 - You always consider mobile responsiveness and accessibility.
 - You can explain complex concepts simply, like talking to a smart friend.
 - You can analyze, debug, and review code with expert-level precision.
-- You think step-by-step when solving problems (chain of thought reasoning).`;
+- You think step-by-step when solving problems (chain of thought reasoning).
+- You can analyze images, documents, and files that users share with you.
+- When a user shares an image, describe what you see and answer questions about it.`;
 
 const MODE_PROMPTS: Record<string, string> = {
   all: `
@@ -32,7 +34,13 @@ const MODE_PROMPTS: Record<string, string> = {
 - Generate COMPLETE, FULLY WORKING code — never placeholder or skeleton code
 - Every file must be production-ready and functional
 - Include all necessary files for the project to work
-- Add brief explanation before code blocks`,
+- Add brief explanation before code blocks
+
+**FILE/IMAGE ANALYSIS MODE** — When user shares files or images:
+- Analyze the content thoroughly
+- If it's an image, describe what you see in detail
+- If it's a document/code, analyze and explain
+- Answer any questions about the shared content`,
 
   "vibe-code": `
 ## MODE: VIBE CODE (Code Generation Only)
@@ -168,6 +176,17 @@ serve(async (req) => {
       ? "google/gemini-2.5-flash"
       : "google/gemini-3-flash-preview";
 
+    // Messages can now contain multimodal content (text + images)
+    // Format: { role, content } where content is string or array of content parts
+    const formattedMessages = messages.slice(-30).map((msg: any) => {
+      // If content is already an array (multimodal), pass through
+      if (Array.isArray(msg.content)) {
+        return { role: msg.role, content: msg.content };
+      }
+      // Otherwise wrap text in standard format
+      return { role: msg.role, content: msg.content };
+    });
+
     const response = await fetch(
       "https://ai.gateway.lovable.dev/v1/chat/completions",
       {
@@ -180,7 +199,7 @@ serve(async (req) => {
           model,
           messages: [
             { role: "system", content: systemPrompt },
-            ...messages.slice(-30),
+            ...formattedMessages,
           ],
           stream: true,
         }),
