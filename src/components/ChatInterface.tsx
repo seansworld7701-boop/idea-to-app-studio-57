@@ -105,13 +105,51 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
     if (showHistory) loadChatHistory();
   }, [showHistory, loadChatHistory]);
 
+  // Realtime subscription for collaborative projects
+  useEffect(() => {
+    if (!currentProjectId) return;
+    const channel = supabase
+      .channel(`project-${currentProjectId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'projects',
+          filter: `id=eq.${currentProjectId}`,
+        },
+        (payload) => {
+          const newConversations = payload.new?.conversations;
+          if (!newConversations || !Array.isArray(newConversations)) return;
+          // Only update if the change came from someone else (more messages than we have)
+          setMessages((prev) => {
+            if (prev.some(m => m.id === "streaming")) return prev; // don't interrupt streaming
+            const incoming = (newConversations as any[]).map((m: any) => ({
+              id: crypto.randomUUID(),
+              role: m.role as "user" | "assistant",
+              content: m.content,
+              sender: m.sender,
+            }));
+            if (incoming.length > prev.length) return incoming;
+            return prev;
+          });
+        }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [currentProjectId]);
+
   const saveProject = useCallback(async (allMessages: Message[], prompt: string, assistantContent: string) => {
     if (!user) return;
     const { files } = parseAIResponse(assistantContent);
     const title = files.length > 0
       ? files[0]?.name.replace(/\.\w+$/, "") || "Untitled"
       : prompt.slice(0, 50) || "Chat";
-    const conversations = allMessages.map((m) => ({ role: m.role, content: m.content }));
+    const conversations = allMessages.map((m) => ({
+      role: m.role,
+      content: m.content,
+      sender: m.sender || user.email,
+    }));
 
     try {
       if (currentProjectId) {
