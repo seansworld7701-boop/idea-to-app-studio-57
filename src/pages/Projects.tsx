@@ -1,10 +1,12 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { FolderOpen, Trash2, Loader2, ArrowRight, MessageSquare, Share2, Check, Globe, Link2, Copy } from "lucide-react";
+import { FolderOpen, Trash2, Loader2, ArrowRight, MessageSquare, Share2, Check, Globe, Link2, Copy, Download } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/hooks/use-toast";
+import JSZip from "jszip";
+import { saveAs } from "file-saver";
 import type { Json } from "@/integrations/supabase/types";
 
 interface ProjectFile {
@@ -182,6 +184,21 @@ const ProjectsPage = () => {
     toast({ title: "Link copied!" });
   };
 
+  const handleExport = async (p: Project) => {
+    if (p.files.length === 0) {
+      toast({ title: "No files", description: "This project has no files to export", variant: "destructive" });
+      return;
+    }
+    const zip = new JSZip();
+    for (const file of p.files) {
+      zip.file(file.name, file.content);
+    }
+    const blob = await zip.generateAsync({ type: "blob" });
+    const safeName = p.title.replace(/[^a-z0-9]+/gi, "-").toLowerCase();
+    saveAs(blob, `${safeName}.zip`);
+    toast({ title: "Downloaded!", description: `${p.files.length} file(s) exported` });
+  };
+
   // Route guard handles unauthenticated state
   if (!user) return null;
 
@@ -285,6 +302,13 @@ const ProjectsPage = () => {
                   </button>
                 )}
 
+                <button
+                  onClick={() => handleExport(p)}
+                  className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                  title="Download as ZIP"
+                >
+                  <Download size={13} />
+                </button>
                 <button
                   onClick={() => handleShare(p)}
                   disabled={sharing === p.id}

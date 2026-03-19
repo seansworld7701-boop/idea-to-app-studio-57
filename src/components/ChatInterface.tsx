@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Send, Loader2, ChevronDown, Sparkles, Braces, MessageCircle, FileSearch, ScanEye, Wrench, Trash2, Paperclip, X, History, Mic, MicOff } from "lucide-react";
+import { Send, Loader2, ChevronDown, Sparkles, Braces, MessageCircle, FileSearch, ScanEye, Wrench, Trash2, Paperclip, X, History, Mic, MicOff, Cpu } from "lucide-react";
 import { motion } from "framer-motion";
-import { streamChat, generateImage, fileToBase64, parseAIResponse, type Msg, type ChatMode, type ContentPart } from "@/lib/ai-stream";
+import { streamChat, generateImage, fileToBase64, parseAIResponse, type Msg, type ChatMode, type ContentPart, type AIModel, AI_MODELS } from "@/lib/ai-stream";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -45,7 +45,9 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [mode, setMode] = useState<ChatMode>("all");
+  const [selectedModel, setSelectedModel] = useState<AIModel>("auto");
   const [modeMenuOpen, setModeMenuOpen] = useState(false);
+  const [modelMenuOpen, setModelMenuOpen] = useState(false);
   const [currentProjectId, setCurrentProjectId] = useState<string | null>(projectId || null);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
@@ -56,6 +58,7 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const modelMenuRef = useRef<HTMLDivElement>(null);
   const initialPromptSent = useRef(false);
   const modeMenuRef = useRef<HTMLDivElement>(null);
   const { user } = useAuth();
@@ -77,10 +80,13 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
       if (modeMenuRef.current && !modeMenuRef.current.contains(e.target as Node)) {
         setModeMenuOpen(false);
       }
+      if (modelMenuRef.current && !modelMenuRef.current.contains(e.target as Node)) {
+        setModelMenuOpen(false);
+      }
     };
-    if (modeMenuOpen) document.addEventListener("mousedown", handleClickOutside);
+    if (modeMenuOpen || modelMenuOpen) document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [modeMenuOpen]);
+  }, [modeMenuOpen, modelMenuOpen]);
 
   useEffect(() => {
     if (initialPrompt && !initialPromptSent.current && messages.length === 0) {
@@ -253,6 +259,7 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
       await streamChat({
         messages: history,
         mode,
+        model: selectedModel,
         onDelta: (chunk) => {
           assistantSoFar += chunk;
           setMessages((prev) => {
@@ -306,52 +313,68 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
   const handleMicToggle = () => {
     if (isRecording) {
       recognitionRef.current?.stop();
+      recognitionRef.current = null;
       setIsRecording(false);
       return;
     }
 
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) {
-      toast({ title: "Not supported", description: "Voice input is not supported in this browser. Try Chrome.", variant: "destructive" });
+      toast({ title: "Not supported", description: "Voice input is not supported in this browser. Try Chrome or Edge.", variant: "destructive" });
       return;
     }
 
-    const recognition = new SpeechRecognition();
-    recognition.continuous = true;
-    recognition.interimResults = true;
-    recognition.lang = "en-US";
-    recognitionRef.current = recognition;
+    try {
+      const recognition = new SpeechRecognition();
+      recognition.continuous = false;
+      recognition.interimResults = true;
+      recognition.lang = navigator.language || "en-US";
+      recognition.maxAlternatives = 1;
+      recognitionRef.current = recognition;
 
-    const baseInput = input;
+      let finalTranscript = "";
 
-    recognition.onresult = (event: any) => {
-      let final = "";
-      let interim = "";
-      for (let i = 0; i < event.results.length; i++) {
-        if (event.results[i].isFinal) {
-          final += event.results[i][0].transcript;
-        } else {
-          interim += event.results[i][0].transcript;
+      recognition.onresult = (event: any) => {
+        let interim = "";
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const transcript = event.results[i][0].transcript;
+          if (event.results[i].isFinal) {
+            finalTranscript += transcript + " ";
+          } else {
+            interim = transcript;
+          }
         }
-      }
-      const text = (final + interim).trim();
-      setInput(baseInput ? `${baseInput} ${text}` : text);
-    };
+        const combined = (finalTranscript + interim).trim();
+        if (combined) {
+          setInput((prev) => {
+            const base = prev.replace(/\s*\[listening...\]$/, "").trim();
+            return base ? `${base} ${combined}` : combined;
+          });
+        }
+      };
 
-    recognition.onerror = (e: any) => {
-      console.error("Speech recognition error:", e.error);
-      setIsRecording(false);
-      if (e.error === "not-allowed") {
-        toast({ title: "Microphone blocked", description: "Please allow microphone access in your browser settings", variant: "destructive" });
-      }
-    };
+      recognition.onerror = (e: any) => {
+        console.error("Speech recognition error:", e.error);
+        recognitionRef.current = null;
+        setIsRecording(false);
+        if (e.error === "not-allowed" || e.error === "permission-denied") {
+          toast({ title: "Microphone blocked", description: "Please allow microphone access in your browser settings.", variant: "destructive" });
+        } else if (e.error !== "aborted" && e.error !== "no-speech") {
+          toast({ title: "Voice error", description: `Speech recognition error: ${e.error}`, variant: "destructive" });
+        }
+      };
 
-    recognition.onend = () => {
-      setIsRecording(false);
-    };
+      recognition.onend = () => {
+        recognitionRef.current = null;
+        setIsRecording(false);
+      };
 
-    recognition.start();
-    setIsRecording(true);
+      recognition.start();
+      setIsRecording(true);
+    } catch (err) {
+      console.error("Failed to start speech recognition:", err);
+      toast({ title: "Error", description: "Could not start voice input", variant: "destructive" });
+    }
   };
 
   useEffect(() => {
@@ -480,42 +503,77 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
 
       {/* Input */}
       <div className="border-t border-border bg-background/80 backdrop-blur-xl px-4 py-3 pb-20">
-        {/* Mode switcher */}
-        <div className="relative mb-2" ref={modeMenuRef}>
-          <button
-            onClick={() => setModeMenuOpen((v) => !v)}
-            className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-surface-1 transition-all"
-          >
-            <ActiveIcon size={14} />
-            {activeMode.label}
-            <ChevronDown size={12} className={`transition-transform ${modeMenuOpen ? "rotate-180" : ""}`} />
-          </button>
-          {modeMenuOpen && (
-            <motion.div
-              initial={{ opacity: 0, y: 4 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="absolute bottom-full left-0 mb-1 w-52 rounded-xl border border-border bg-background shadow-lg overflow-hidden z-50"
+        {/* Mode & Model switcher */}
+        <div className="flex items-center gap-2 mb-2">
+          <div className="relative" ref={modeMenuRef}>
+            <button
+              onClick={() => { setModeMenuOpen((v) => !v); setModelMenuOpen(false); }}
+              className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-surface-1 transition-all"
             >
-              {MODES.map((m) => {
-                const Icon = m.icon;
-                return (
+              <ActiveIcon size={14} />
+              {activeMode.label}
+              <ChevronDown size={12} className={`transition-transform ${modeMenuOpen ? "rotate-180" : ""}`} />
+            </button>
+            {modeMenuOpen && (
+              <motion.div
+                initial={{ opacity: 0, y: 4 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="absolute bottom-full left-0 mb-1 w-52 rounded-xl border border-border bg-background shadow-lg overflow-hidden z-50"
+              >
+                {MODES.map((m) => {
+                  const Icon = m.icon;
+                  return (
+                    <button
+                      key={m.id}
+                      onClick={() => { setMode(m.id); setModeMenuOpen(false); }}
+                      className={`flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-xs transition-colors ${
+                        mode === m.id ? "bg-surface-1 text-foreground" : "text-muted-foreground hover:text-foreground hover:bg-surface-1/50"
+                      }`}
+                    >
+                      <Icon size={14} />
+                      <div>
+                        <div className="font-medium">{m.label}</div>
+                        <div className="text-[10px] text-muted-foreground">{m.desc}</div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </motion.div>
+            )}
+          </div>
+
+          <div className="relative" ref={modelMenuRef}>
+            <button
+              onClick={() => { setModelMenuOpen((v) => !v); setModeMenuOpen(false); }}
+              className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-surface-1 transition-all"
+            >
+              <Cpu size={14} />
+              {AI_MODELS.find((m) => m.id === selectedModel)?.label || "Auto"}
+              <ChevronDown size={12} className={`transition-transform ${modelMenuOpen ? "rotate-180" : ""}`} />
+            </button>
+            {modelMenuOpen && (
+              <motion.div
+                initial={{ opacity: 0, y: 4 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="absolute bottom-full left-0 mb-1 w-48 rounded-xl border border-border bg-background shadow-lg overflow-hidden z-50"
+              >
+                {AI_MODELS.map((m) => (
                   <button
                     key={m.id}
-                    onClick={() => { setMode(m.id); setModeMenuOpen(false); }}
+                    onClick={() => { setSelectedModel(m.id); setModelMenuOpen(false); }}
                     className={`flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-xs transition-colors ${
-                      mode === m.id ? "bg-surface-1 text-foreground" : "text-muted-foreground hover:text-foreground hover:bg-surface-1/50"
+                      selectedModel === m.id ? "bg-surface-1 text-foreground" : "text-muted-foreground hover:text-foreground hover:bg-surface-1/50"
                     }`}
                   >
-                    <Icon size={14} />
                     <div>
                       <div className="font-medium">{m.label}</div>
                       <div className="text-[10px] text-muted-foreground">{m.desc}</div>
                     </div>
                   </button>
-                );
-              })}
-            </motion.div>
-          )}
+                ))}
+              </motion.div>
+            )}
+          </div>
         </div>
 
         {/* Attachment previews */}
