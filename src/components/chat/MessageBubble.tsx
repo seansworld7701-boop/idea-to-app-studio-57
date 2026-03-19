@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Copy, Check, RefreshCw, Download } from "lucide-react";
+import { Copy, Check, RefreshCw, Download, Bookmark, BookmarkCheck } from "lucide-react";
 import { useState } from "react";
 import ReactMarkdown from "react-markdown";
 import ArtifactCard from "../ArtifactCard";
@@ -19,9 +19,11 @@ interface MessageBubbleProps {
   isLoggedIn: boolean;
   onOpenPreview: (html: string, title: string) => void;
   onRetry?: () => void;
+  isPinned?: boolean;
+  onTogglePin?: () => void;
 }
 
-const MessageBubble = ({ message, isLoggedIn, onOpenPreview, onRetry }: MessageBubbleProps) => {
+const MessageBubble = ({ message, isLoggedIn, onOpenPreview, onRetry, isPinned, onTogglePin }: MessageBubbleProps) => {
   const [copied, setCopied] = useState(false);
   const [expandedImg, setExpandedImg] = useState<string | null>(null);
 
