@@ -1,4 +1,4 @@
-import { Sparkles, Lightbulb } from "lucide-react";
+import { Lightbulb } from "lucide-react";
 import { motion } from "framer-motion";
 
 interface FollowUpSuggestionsProps {
@@ -10,7 +10,6 @@ function generateSuggestions(content: string): string[] {
   const lower = content.toLowerCase();
   const suggestions: string[] = [];
 
-  // Check for code/web content
   const hasCode = content.includes("===FILE:") || content.includes("```");
   const hasHtml = lower.includes("<html") || lower.includes("<!doctype");
   const hasGame = lower.includes("game") || lower.includes("canvas") || lower.includes("three.js");
@@ -18,6 +17,8 @@ function generateSuggestions(content: string): string[] {
   const hasForm = lower.includes("form") || lower.includes("input") || lower.includes("submit");
   const hasList = lower.includes("list") || lower.includes("table") || lower.includes("grid");
   const hasAuth = lower.includes("login") || lower.includes("auth") || lower.includes("password");
+  const hasReact = lower.includes("react") || lower.includes("component") || lower.includes("jsx");
+  const hasDb = lower.includes("database") || lower.includes("sql") || lower.includes("supabase");
 
   if (hasCode || hasHtml) {
     suggestions.push("Make it responsive for mobile");
@@ -53,7 +54,17 @@ function generateSuggestions(content: string): string[] {
     suggestions.push("Add forgot password flow");
   }
 
-  // Generic but useful suggestions
+  if (hasReact) {
+    suggestions.push("Add TypeScript types");
+    suggestions.push("Optimize performance");
+  }
+
+  if (hasDb) {
+    suggestions.push("Add data validation");
+    suggestions.push("Add real-time updates");
+  }
+
+  // Generic but useful suggestions as fallback
   if (suggestions.length < 2) {
     suggestions.push("Explain how this works");
     suggestions.push("Improve the design");
@@ -70,17 +81,22 @@ const FollowUpSuggestions = ({ lastAssistantContent, onSuggestionClick }: Follow
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 6 }}
+      initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.3 }}
-      className="flex flex-wrap gap-1.5 pt-1"
+      transition={{ delay: 0.4, duration: 0.3 }}
+      className="flex flex-wrap items-center gap-1.5 pt-2"
     >
-      <Lightbulb size={11} className="text-muted-foreground mt-1.5 shrink-0" />
+      <Lightbulb size={11} className="text-muted-foreground shrink-0" />
       {suggestions.map((s) => (
         <button
           key={s}
-          onClick={() => onSuggestionClick(s)}
-          className="rounded-lg border border-border bg-surface-1 px-2.5 py-1.5 text-[10px] text-muted-foreground hover:text-foreground hover:border-foreground/20 transition-all active:scale-[0.97]"
+          type="button"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onSuggestionClick(s);
+          }}
+          className="rounded-lg border border-border bg-secondary px-2.5 py-1.5 text-[10px] text-muted-foreground hover:text-foreground hover:border-foreground/20 hover:bg-muted transition-all active:scale-[0.97] cursor-pointer"
         >
           {s}
         </button>

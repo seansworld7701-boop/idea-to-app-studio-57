@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Send, Loader2, ChevronDown, Sparkles, Braces, MessageCircle, FileSearch, ScanEye, Wrench, Trash2, Paperclip, X, History, Mic, MicOff, User, Palette, GraduationCap, Rocket, Wand2, Code2 } from "lucide-react";
+import { Send, Loader2, ChevronDown, Sparkles, Braces, MessageCircle, FileSearch, ScanEye, Wrench, Trash2, Paperclip, X, History, Mic, MicOff, Palette, GraduationCap, Rocket, Wand2, Code2, Bot, Zap } from "lucide-react";
 import { motion } from "framer-motion";
 import { streamChat, generateImage, fileToBase64, parseAIResponse, type Msg, type ChatMode, type ContentPart, type PersonaId } from "@/lib/ai-stream";
 import { toast } from "@/hooks/use-toast";
@@ -22,12 +22,12 @@ const MODES: { id: ChatMode; label: string; icon: typeof Braces; desc: string }[
   { id: "debug", label: "Debug", icon: Wrench, desc: "Find & fix bugs" },
 ];
 
-const PERSONAS: { id: PersonaId; label: string; icon: typeof User; desc: string }[] = [
-  { id: "default", label: "Default", icon: Sparkles, desc: "Balanced all-rounder" },
+const PERSONAS: { id: PersonaId; label: string; icon: typeof Bot; desc: string }[] = [
+  { id: "default", label: "Default", icon: Bot, desc: "Balanced all-rounder" },
   { id: "senior-dev", label: "Senior Dev", icon: Code2, desc: "Clean, scalable code" },
   { id: "designer", label: "Designer", icon: Palette, desc: "Pixel-perfect UI" },
   { id: "tutor", label: "Tutor", icon: GraduationCap, desc: "Step-by-step learning" },
-  { id: "startup", label: "Startup CTO", icon: Rocket, desc: "Ship fast, iterate" },
+  { id: "startup", label: "Startup CTO", icon: Zap, desc: "Ship fast, iterate" },
   { id: "creative", label: "Creative", icon: Wand2, desc: "Experimental & artistic" },
 ];
 
@@ -124,7 +124,6 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
     if (showHistory) loadChatHistory();
   }, [showHistory, loadChatHistory]);
 
-  // Realtime subscription for collaborative projects
   useEffect(() => {
     if (!currentProjectId) return;
     const channel = supabase
@@ -238,7 +237,6 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
       sender: user?.email || undefined,
     };
 
-    // Track previous files for diff
     const lastAssistant = [...messages].reverse().find((m) => m.role === "assistant");
     if (lastAssistant) {
       const { files } = parseAIResponse(lastAssistant.content);
@@ -432,7 +430,6 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
   const handleScrollToMessage = (id: string) => {
     const el = messageRefs.current.get(id);
     el?.scrollIntoView({ behavior: "smooth", block: "center" });
-    // Flash highlight
     el?.classList.add("ring-1", "ring-foreground/20", "rounded-lg");
     setTimeout(() => el?.classList.remove("ring-1", "ring-foreground/20", "rounded-lg"), 2000);
   };
@@ -452,7 +449,12 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
     toast({ title: "Chat exported!" });
   };
 
-  // Get current files for diff
+  const handleSuggestionClick = useCallback((suggestion: string) => {
+    if (isLoading) return;
+    setInput(suggestion);
+    setTimeout(() => handleSend(suggestion), 50);
+  }, [isLoading, messages, mode, persona, user, currentProjectId, attachments]);
+
   const lastAssistantMsg = [...messages].reverse().find((m) => m.role === "assistant" && m.id !== "streaming");
   const currentFiles = lastAssistantMsg ? parseAIResponse(lastAssistantMsg.content).files : [];
   const hasDiff = previousFiles.length > 0 && currentFiles.length > 0;
@@ -472,20 +474,20 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
     "debug": "Describe the bug or paste code...",
   };
 
-  // Last assistant content for follow-up suggestions
-  const lastAssistantContent = messages.filter((m) => m.role === "assistant").pop()?.content || "";
+  const lastAssistantContent = messages.filter((m) => m.role === "assistant" && m.id !== "streaming").pop()?.content || "";
+  const showSuggestions = !isLoading && lastAssistantContent && messages.length > 0 && messages[messages.length - 1]?.role === "assistant" && messages[messages.length - 1]?.id !== "streaming";
 
   return (
     <div className="flex flex-col h-full relative">
       {/* Top bar */}
       {!isEmpty && (
-        <div className="flex items-center justify-between px-4 pt-2 relative">
-          <div className="flex items-center gap-1">
+        <div className="flex items-center justify-between px-3 py-1.5 border-b border-border/50 relative">
+          <div className="flex items-center gap-0.5">
             <button
               onClick={() => setShowHistory(!showHistory)}
-              className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-surface-1 transition-all"
+              className="flex items-center gap-1 rounded-lg px-2 py-1.5 text-[11px] text-muted-foreground hover:text-foreground hover:bg-secondary transition-all"
             >
-              <History size={12} /> History
+              <History size={12} />
             </button>
             <ChatToolbar
               messages={messages}
@@ -495,12 +497,12 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
               onExport={handleExportChat}
             />
           </div>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-0.5">
             {hasDiff && (
               <button
                 onClick={() => setShowDiff(!showDiff)}
-                className={`flex items-center gap-1 rounded-lg px-2 py-1.5 text-[10px] transition-all ${
-                  showDiff ? "bg-surface-1 text-foreground" : "text-muted-foreground hover:text-foreground"
+                className={`flex items-center gap-1 rounded-lg px-2 py-1.5 text-[11px] transition-all ${
+                  showDiff ? "bg-secondary text-foreground" : "text-muted-foreground hover:text-foreground hover:bg-secondary"
                 }`}
               >
                 <Code2 size={11} /> Diff
@@ -508,9 +510,9 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
             )}
             <button
               onClick={handleClearChat}
-              className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-surface-1 transition-all"
+              className="flex items-center gap-1 rounded-lg px-2 py-1.5 text-[11px] text-muted-foreground hover:text-foreground hover:bg-secondary transition-all"
             >
-              <Trash2 size={12} /> New
+              <Trash2 size={11} />
             </button>
           </div>
         </div>
@@ -533,7 +535,7 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
                   key={chat.id}
                   onClick={() => handleLoadChat(chat.id)}
                   className={`flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-left text-xs transition-colors ${
-                    currentProjectId === chat.id ? "bg-surface-1 text-foreground" : "text-muted-foreground hover:text-foreground hover:bg-surface-1/50"
+                    currentProjectId === chat.id ? "bg-secondary text-foreground" : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
                   }`}
                 >
                   <span className="truncate flex-1">{chat.title}</span>
@@ -568,10 +570,10 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
             ))}
 
             {/* Follow-up suggestions */}
-            {!isLoading && lastAssistantContent && messages[messages.length - 1]?.role === "assistant" && (
+            {showSuggestions && (
               <FollowUpSuggestions
                 lastAssistantContent={lastAssistantContent}
-                onSuggestionClick={(s) => handleSend(s)}
+                onSuggestionClick={handleSuggestionClick}
               />
             )}
 
@@ -594,17 +596,16 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
 
       {/* Input */}
       <div className="border-t border-border bg-background/80 backdrop-blur-xl px-4 py-3 pb-20">
-        {/* Mode + Persona switcher */}
+        {/* Mode + Persona switcher — single row, compact */}
         <div className="flex items-center gap-1 mb-2">
-          {/* Mode */}
           <div className="relative" ref={modeMenuRef}>
             <button
               onClick={() => { setModeMenuOpen((v) => !v); setPersonaMenuOpen(false); }}
-              className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-surface-1 transition-all"
+              className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-[11px] text-muted-foreground hover:text-foreground hover:bg-secondary transition-all"
             >
-              <ActiveIcon size={13} />
+              <ActiveIcon size={12} />
               {activeMode.label}
-              <ChevronDown size={11} className={`transition-transform ${modeMenuOpen ? "rotate-180" : ""}`} />
+              <ChevronDown size={10} className={`transition-transform ${modeMenuOpen ? "rotate-180" : ""}`} />
             </button>
             {modeMenuOpen && (
               <motion.div
@@ -619,7 +620,7 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
                       key={m.id}
                       onClick={() => { setMode(m.id); setModeMenuOpen(false); }}
                       className={`flex w-full items-center gap-2.5 px-3 py-2 text-left text-xs transition-colors ${
-                        mode === m.id ? "bg-surface-1 text-foreground" : "text-muted-foreground hover:text-foreground hover:bg-surface-1/50"
+                        mode === m.id ? "bg-secondary text-foreground" : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
                       }`}
                     >
                       <Icon size={13} />
@@ -634,15 +635,16 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
             )}
           </div>
 
-          {/* Persona */}
+          <div className="w-px h-4 bg-border" />
+
           <div className="relative" ref={personaMenuRef}>
             <button
               onClick={() => { setPersonaMenuOpen((v) => !v); setModeMenuOpen(false); }}
-              className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-surface-1 transition-all"
+              className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-[11px] text-muted-foreground hover:text-foreground hover:bg-secondary transition-all"
             >
-              <PersonaIcon size={13} />
+              <PersonaIcon size={12} />
               {activePersona.label}
-              <ChevronDown size={11} className={`transition-transform ${personaMenuOpen ? "rotate-180" : ""}`} />
+              <ChevronDown size={10} className={`transition-transform ${personaMenuOpen ? "rotate-180" : ""}`} />
             </button>
             {personaMenuOpen && (
               <motion.div
@@ -657,7 +659,7 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
                       key={p.id}
                       onClick={() => { setPersona(p.id); setPersonaMenuOpen(false); }}
                       className={`flex w-full items-center gap-2.5 px-3 py-2 text-left text-xs transition-colors ${
-                        persona === p.id ? "bg-surface-1 text-foreground" : "text-muted-foreground hover:text-foreground hover:bg-surface-1/50"
+                        persona === p.id ? "bg-secondary text-foreground" : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
                       }`}
                     >
                       <Icon size={13} />
@@ -681,7 +683,7 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
                 {att.type === "image" ? (
                   <img src={att.preview} alt={att.file.name} className="h-16 w-16 rounded-lg object-cover border border-border" />
                 ) : (
-                  <div className="h-16 w-16 rounded-lg border border-border bg-surface-1 flex flex-col items-center justify-center gap-1 px-1">
+                  <div className="h-16 w-16 rounded-lg border border-border bg-secondary flex flex-col items-center justify-center gap-1 px-1">
                     <Paperclip size={14} className="text-muted-foreground" />
                     <span className="text-[8px] text-muted-foreground truncate w-full text-center">{att.file.name}</span>
                   </div>
@@ -697,7 +699,7 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
           </div>
         )}
 
-        <div className="flex items-center gap-2 rounded-2xl border border-border bg-surface-1 px-3 py-2 focus-within:ring-1 focus-within:ring-foreground/20 transition-all">
+        <div className="flex items-center gap-2 rounded-2xl border border-border bg-secondary px-3 py-2 focus-within:ring-1 focus-within:ring-foreground/20 transition-all">
           <button
             onClick={() => fileInputRef.current?.click()}
             disabled={isLoading}
