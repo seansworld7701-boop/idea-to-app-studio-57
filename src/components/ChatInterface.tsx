@@ -232,6 +232,7 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
       content: msgText,
       images: userImages.length > 0 ? userImages : undefined,
       attachments: userAttachments.length > 0 ? userAttachments : undefined,
+      sender: user?.email || undefined,
     };
 
     const newMessages = [...messages, userMsg];
