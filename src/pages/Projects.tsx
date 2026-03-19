@@ -321,57 +321,54 @@ const ProjectsPage = () => {
         </AnimatePresence>
       )}
 
-      <div className="flex items-center gap-1.5">
-        <button
-          onClick={() => handleContinue(p)}
-          className="flex items-center gap-1.5 flex-1 justify-center rounded-lg bg-foreground py-2 text-xs font-medium text-background active:scale-[0.97] transition-transform"
-        >
-          <MessageSquare size={13} />
-          {isCollab ? "Open" : "Continue"}
-        </button>
+      {/* Primary action */}
+      <button
+        onClick={() => handleContinue(p)}
+        className="flex items-center gap-2 w-full justify-center rounded-lg bg-foreground py-2.5 text-xs font-medium text-background active:scale-[0.97] transition-transform"
+      >
+        <ArrowRight size={14} />
+        {isCollab ? "Open Project" : "Continue Building"}
+      </button>
 
-        {!isCollab && (
-          <>
-            {p.is_hosted ? (
-              <button onClick={() => handleUnhost(p)} className="flex items-center gap-1.5 rounded-lg border border-emerald-500/30 px-3 py-2 text-xs text-emerald-400 hover:bg-emerald-500/10 transition-colors">
-                <Globe size={13} /> Live
-              </button>
-            ) : (
-              <button
-                onClick={() => { setHostingProject(hostingProject === p.id ? null : p.id); setSlugInput(p.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 30)); }}
-                className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <Globe size={13} /> Host
-              </button>
-            )}
-
-            <button onClick={() => handleExport(p)} className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-xs text-muted-foreground hover:text-foreground transition-colors" title="Download as ZIP">
-              <Download size={13} />
+      {/* Secondary actions row */}
+      {!isCollab && (
+        <div className="flex items-center gap-1.5">
+          {p.is_hosted ? (
+            <button onClick={() => handleUnhost(p)} className="flex items-center gap-1.5 flex-1 justify-center rounded-lg border border-border px-2 py-2 text-xs text-muted-foreground hover:text-foreground transition-colors">
+              <Globe size={12} className="text-emerald-400" /> Live
             </button>
+          ) : (
             <button
-              onClick={() => { setSharePanel(sharePanel === p.id ? null : p.id); setCollabPanel(null); }}
-              className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs transition-colors ${p.is_shared ? "border-blue-500/30 text-blue-400 hover:bg-blue-500/10" : "border-border text-muted-foreground hover:text-foreground"}`}
-              title="Share"
+              onClick={() => { setHostingProject(hostingProject === p.id ? null : p.id); setSlugInput(p.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 30)); }}
+              className="flex items-center gap-1.5 flex-1 justify-center rounded-lg border border-border px-2 py-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
             >
-              <Share2 size={13} />
+              <Globe size={12} /> Host
             </button>
-            <button
-              onClick={() => { setCollabPanel(collabPanel === p.id ? null : p.id); setSharePanel(null); }}
-              className="flex items-center gap-1.5 rounded-lg border border-purple-500/30 px-3 py-2 text-xs text-purple-400 hover:bg-purple-500/10 transition-colors"
-              title="Collaborate"
-            >
-              <Users size={13} />
-            </button>
-            <button
-              onClick={() => handleDelete(p.id)}
-              disabled={deleting === p.id}
-              className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:text-red-400 hover:bg-red-400/10 transition-colors shrink-0"
-            >
-              {deleting === p.id ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
-            </button>
-          </>
-        )}
-      </div>
+          )}
+          <button
+            onClick={() => { setSharePanel(sharePanel === p.id ? null : p.id); setCollabPanel(null); }}
+            className={`flex items-center gap-1.5 flex-1 justify-center rounded-lg border px-2 py-2 text-xs transition-colors ${p.is_shared ? "border-border text-foreground" : "border-border text-muted-foreground hover:text-foreground"}`}
+          >
+            <Share2 size={12} /> Share
+          </button>
+          <button
+            onClick={() => { setCollabPanel(collabPanel === p.id ? null : p.id); setSharePanel(null); }}
+            className="flex items-center gap-1.5 flex-1 justify-center rounded-lg border border-border px-2 py-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <Users size={12} /> Collab
+          </button>
+          <button onClick={() => handleExport(p)} className="flex items-center justify-center rounded-lg border border-border h-8 w-8 text-muted-foreground hover:text-foreground transition-colors shrink-0" title="Download">
+            <Download size={12} />
+          </button>
+          <button
+            onClick={() => handleDelete(p.id)}
+            disabled={deleting === p.id}
+            className="flex items-center justify-center rounded-lg border border-border h-8 w-8 text-muted-foreground hover:text-destructive transition-colors shrink-0"
+          >
+            {deleting === p.id ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
+          </button>
+        </div>
+      )}
 
       {/* Hosting slug input */}
       {!isCollab && hostingProject === p.id && (
