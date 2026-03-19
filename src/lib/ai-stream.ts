@@ -8,6 +8,7 @@ export type ContentPart =
 
 export type Msg = { role: "user" | "assistant"; content: string | ContentPart[] };
 export type ChatMode = "all" | "vibe-code" | "chat" | "explain" | "review" | "debug";
+export type PersonaId = "default" | "senior-dev" | "designer" | "tutor" | "startup" | "creative";
 
 export async function streamChat({
   messages,
