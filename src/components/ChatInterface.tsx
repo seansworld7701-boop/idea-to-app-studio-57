@@ -313,52 +313,68 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
   const handleMicToggle = () => {
     if (isRecording) {
       recognitionRef.current?.stop();
+      recognitionRef.current = null;
       setIsRecording(false);
       return;
     }
 
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) {
-      toast({ title: "Not supported", description: "Voice input is not supported in this browser. Try Chrome.", variant: "destructive" });
+      toast({ title: "Not supported", description: "Voice input is not supported in this browser. Try Chrome or Edge.", variant: "destructive" });
       return;
     }
 
-    const recognition = new SpeechRecognition();
-    recognition.continuous = true;
-    recognition.interimResults = true;
-    recognition.lang = "en-US";
-    recognitionRef.current = recognition;
+    try {
+      const recognition = new SpeechRecognition();
+      recognition.continuous = false;
+      recognition.interimResults = true;
+      recognition.lang = navigator.language || "en-US";
+      recognition.maxAlternatives = 1;
+      recognitionRef.current = recognition;
 
-    const baseInput = input;
+      let finalTranscript = "";
 
-    recognition.onresult = (event: any) => {
-      let final = "";
-      let interim = "";
-      for (let i = 0; i < event.results.length; i++) {
-        if (event.results[i].isFinal) {
-          final += event.results[i][0].transcript;
-        } else {
-          interim += event.results[i][0].transcript;
+      recognition.onresult = (event: any) => {
+        let interim = "";
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const transcript = event.results[i][0].transcript;
+          if (event.results[i].isFinal) {
+            finalTranscript += transcript + " ";
+          } else {
+            interim = transcript;
+          }
         }
-      }
-      const text = (final + interim).trim();
-      setInput(baseInput ? `${baseInput} ${text}` : text);
-    };
+        const combined = (finalTranscript + interim).trim();
+        if (combined) {
+          setInput((prev) => {
+            const base = prev.replace(/\s*\[listening...\]$/, "").trim();
+            return base ? `${base} ${combined}` : combined;
+          });
+        }
+      };
 
-    recognition.onerror = (e: any) => {
-      console.error("Speech recognition error:", e.error);
-      setIsRecording(false);
-      if (e.error === "not-allowed") {
-        toast({ title: "Microphone blocked", description: "Please allow microphone access in your browser settings", variant: "destructive" });
-      }
-    };
+      recognition.onerror = (e: any) => {
+        console.error("Speech recognition error:", e.error);
+        recognitionRef.current = null;
+        setIsRecording(false);
+        if (e.error === "not-allowed" || e.error === "permission-denied") {
+          toast({ title: "Microphone blocked", description: "Please allow microphone access in your browser settings.", variant: "destructive" });
+        } else if (e.error !== "aborted" && e.error !== "no-speech") {
+          toast({ title: "Voice error", description: `Speech recognition error: ${e.error}`, variant: "destructive" });
+        }
+      };
 
-    recognition.onend = () => {
-      setIsRecording(false);
-    };
+      recognition.onend = () => {
+        recognitionRef.current = null;
+        setIsRecording(false);
+      };
 
-    recognition.start();
-    setIsRecording(true);
+      recognition.start();
+      setIsRecording(true);
+    } catch (err) {
+      console.error("Failed to start speech recognition:", err);
+      toast({ title: "Error", description: "Could not start voice input", variant: "destructive" });
+    }
   };
 
   useEffect(() => {
