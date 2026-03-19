@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { FolderOpen, Trash2, Loader2, ArrowRight, MessageSquare, Share2, Check, Globe, Copy, Download, X, Link2, Eye, EyeOff } from "lucide-react";
+import { FolderOpen, Trash2, Loader2, ArrowRight, MessageSquare, Share2, Globe, Copy, Download, X, Link2, Eye, EyeOff, Users, GitFork } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -52,6 +52,7 @@ const ProjectsPage = () => {
   const [hostingProject, setHostingProject] = useState<string | null>(null);
   const [slugInput, setSlugInput] = useState("");
   const [sharePanel, setSharePanel] = useState<string | null>(null);
+  const [collabPanel, setCollabPanel] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) { setLoading(false); return; }
@@ -99,7 +100,7 @@ const ProjectsPage = () => {
 
   const handleEnableShare = async (p: Project) => {
     try {
-      const shareId = crypto.randomUUID().slice(0, 8);
+      const shareId = p.share_id || crypto.randomUUID().slice(0, 8);
       const { error } = await supabase.from("projects").update({
         is_shared: true,
         share_id: shareId,
@@ -136,6 +137,12 @@ const ProjectsPage = () => {
     const url = `${window.location.origin}/shared/${shareId}`;
     await navigator.clipboard.writeText(url);
     toast({ title: "Link copied!" });
+  };
+
+  const copyCollabLink = async (shareId: string) => {
+    const url = `${window.location.origin}/shared/${shareId}?collab=true`;
+    await navigator.clipboard.writeText(url);
+    toast({ title: "Collaboration link copied!", description: "Anyone with this link can fork and build on your project" });
   };
 
   const handleHost = async (p: Project) => {
@@ -208,6 +215,17 @@ const ProjectsPage = () => {
     const safeName = p.title.replace(/[^a-z0-9]+/gi, "-").toLowerCase();
     saveAs(blob, `${safeName}.zip`);
     toast({ title: "Downloaded!", description: `${p.files.length} file(s) exported` });
+  };
+
+  const handleEnableCollab = async (p: Project) => {
+    if (!p.is_shared || !p.share_id) {
+      await handleEnableShare(p);
+    }
+    setTimeout(() => {
+      const updated = projects.find((proj) => proj.id === p.id);
+      const shareId = updated?.share_id || p.share_id;
+      if (shareId) copyCollabLink(shareId);
+    }, 300);
   };
 
   if (!user) return null;
@@ -353,6 +371,57 @@ const ProjectsPage = () => {
                 )}
               </AnimatePresence>
 
+              {/* Collaborate panel */}
+              <AnimatePresence>
+                {collabPanel === p.id && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="overflow-hidden"
+                  >
+                    <div className="rounded-lg border border-purple-500/20 bg-purple-500/5 p-3 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-medium text-foreground flex items-center gap-1.5">
+                          <Users size={12} className="text-purple-400" />
+                          Collaborate
+                        </span>
+                        <button onClick={() => setCollabPanel(null)} className="text-muted-foreground hover:text-foreground transition-colors">
+                          <X size={14} />
+                        </button>
+                      </div>
+                      <p className="text-[10px] text-muted-foreground">
+                        Share a collaboration link. Anyone with it can fork your project and build on top of it.
+                      </p>
+                      {p.is_shared && p.share_id ? (
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2 rounded-lg bg-surface-1 border border-border p-2">
+                            <GitFork size={12} className="text-purple-400 shrink-0" />
+                            <span className="text-[10px] font-mono text-muted-foreground truncate flex-1">
+                              /shared/{p.share_id}?collab=true
+                            </span>
+                            <button
+                              onClick={() => copyCollabLink(p.share_id!)}
+                              className="shrink-0 rounded-md bg-purple-500 px-2 py-1 text-[10px] font-medium text-white active:scale-95 transition-transform"
+                            >
+                              Copy
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => handleEnableCollab(p)}
+                          className="flex items-center gap-1.5 w-full justify-center rounded-lg bg-purple-500 py-2 text-xs font-medium text-white active:scale-95 transition-transform"
+                        >
+                          <Users size={12} />
+                          Enable & copy link
+                        </button>
+                      )}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
               <div className="flex items-center gap-1.5">
                 <button
                   onClick={() => handleContinue(p)}
@@ -388,14 +457,22 @@ const ProjectsPage = () => {
                   <Download size={13} />
                 </button>
                 <button
-                  onClick={() => setSharePanel(sharePanel === p.id ? null : p.id)}
+                  onClick={() => { setSharePanel(sharePanel === p.id ? null : p.id); setCollabPanel(null); }}
                   className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs transition-colors ${
                     p.is_shared
                       ? "border-blue-500/30 text-blue-400 hover:bg-blue-500/10"
                       : "border-border text-muted-foreground hover:text-foreground"
                   }`}
+                  title="Share"
                 >
                   <Share2 size={13} />
+                </button>
+                <button
+                  onClick={() => { setCollabPanel(collabPanel === p.id ? null : p.id); setSharePanel(null); }}
+                  className="flex items-center gap-1.5 rounded-lg border border-purple-500/30 px-3 py-2 text-xs text-purple-400 hover:bg-purple-500/10 transition-colors"
+                  title="Collaborate"
+                >
+                  <Users size={13} />
                 </button>
                 <button
                   onClick={() => handleDelete(p.id)}
