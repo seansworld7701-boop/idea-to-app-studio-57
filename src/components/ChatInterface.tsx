@@ -159,6 +159,7 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
     }));
 
     try {
+      lastSaveRef.current = Date.now();
       if (currentProjectId) {
         await supabase.from("projects").update({
           files: files.length > 0 ? (files as any) : undefined,
