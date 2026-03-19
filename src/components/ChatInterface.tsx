@@ -106,6 +106,7 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
   }, [showHistory, loadChatHistory]);
 
   // Realtime subscription for collaborative projects
+  const lastSaveRef = useRef<number>(0);
   useEffect(() => {
     if (!currentProjectId) return;
     const channel = supabase
@@ -119,18 +120,24 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
           filter: `id=eq.${currentProjectId}`,
         },
         (payload) => {
+          // Skip if we just saved (within 2s) to avoid echo
+          if (Date.now() - lastSaveRef.current < 2000) return;
           const newConversations = payload.new?.conversations;
           if (!newConversations || !Array.isArray(newConversations)) return;
-          // Only update if the change came from someone else (more messages than we have)
           setMessages((prev) => {
-            if (prev.some(m => m.id === "streaming")) return prev; // don't interrupt streaming
+            if (prev.some(m => m.id === "streaming")) return prev;
             const incoming = (newConversations as any[]).map((m: any) => ({
               id: crypto.randomUUID(),
               role: m.role as "user" | "assistant",
               content: m.content,
               sender: m.sender,
             }));
-            if (incoming.length > prev.length) return incoming;
+            // Accept if different count or different last message content
+            const lastPrev = prev[prev.length - 1]?.content;
+            const lastIncoming = incoming[incoming.length - 1]?.content;
+            if (incoming.length !== prev.length || lastIncoming !== lastPrev) {
+              return incoming;
+            }
             return prev;
           });
         }
@@ -152,6 +159,7 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
     }));
 
     try {
+      lastSaveRef.current = Date.now();
       if (currentProjectId) {
         await supabase.from("projects").update({
           files: files.length > 0 ? (files as any) : undefined,
