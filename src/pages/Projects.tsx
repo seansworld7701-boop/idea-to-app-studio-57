@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
-import { FolderOpen, Trash2, Loader2, ArrowRight, MessageSquare, Share2, Check, Globe, Link2, Copy, Download } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { FolderOpen, Trash2, Loader2, ArrowRight, MessageSquare, Share2, Check, Globe, Copy, Download, X, Link2, Eye, EyeOff } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -49,9 +49,9 @@ const ProjectsPage = () => {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState<string | null>(null);
-  const [sharing, setSharing] = useState<string | null>(null);
   const [hostingProject, setHostingProject] = useState<string | null>(null);
   const [slugInput, setSlugInput] = useState("");
+  const [sharePanel, setSharePanel] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) { setLoading(false); return; }
@@ -89,8 +89,7 @@ const ProjectsPage = () => {
 
   const handleContinue = (p: Project) => {
     if (p.conversations.length > 0) {
-      const msgs = encodeURIComponent(JSON.stringify(p.conversations));
-      navigate(`/build?project=${p.id}&messages=${msgs}`);
+      navigate(`/build?project=${p.id}`);
     } else if (p.prompt) {
       navigate(`/build?project=${p.id}&prompt=${encodeURIComponent(p.prompt)}`);
     } else {
@@ -98,33 +97,45 @@ const ProjectsPage = () => {
     }
   };
 
-  const handleShare = async (p: Project) => {
-    setSharing(p.id);
+  const handleEnableShare = async (p: Project) => {
     try {
-      if (p.is_shared && p.share_id) {
-        // Already shared, copy link
-        const url = `${window.location.origin}/shared/${p.share_id}`;
-        await navigator.clipboard.writeText(url);
-        toast({ title: "Link copied!" });
-      } else {
-        // Enable sharing
-        const shareId = crypto.randomUUID().slice(0, 8);
-        const { error } = await supabase.from("projects").update({
-          is_shared: true,
-          share_id: shareId,
-        }).eq("id", p.id);
-        if (error) throw error;
-        setProjects((prev) => prev.map((proj) =>
-          proj.id === p.id ? { ...proj, is_shared: true, share_id: shareId } : proj
-        ));
-        const url = `${window.location.origin}/shared/${shareId}`;
-        await navigator.clipboard.writeText(url);
-        toast({ title: "Share link copied!" });
-      }
+      const shareId = crypto.randomUUID().slice(0, 8);
+      const { error } = await supabase.from("projects").update({
+        is_shared: true,
+        share_id: shareId,
+      }).eq("id", p.id);
+      if (error) throw error;
+      setProjects((prev) => prev.map((proj) =>
+        proj.id === p.id ? { ...proj, is_shared: true, share_id: shareId } : proj
+      ));
+      const url = `${window.location.origin}/shared/${shareId}`;
+      await navigator.clipboard.writeText(url);
+      toast({ title: "Sharing enabled", description: "Link copied to clipboard" });
     } catch {
       toast({ title: "Error", description: "Failed to share", variant: "destructive" });
     }
-    setSharing(null);
+  };
+
+  const handleDisableShare = async (p: Project) => {
+    try {
+      const { error } = await supabase.from("projects").update({
+        is_shared: false,
+        share_id: null,
+      }).eq("id", p.id);
+      if (error) throw error;
+      setProjects((prev) => prev.map((proj) =>
+        proj.id === p.id ? { ...proj, is_shared: false, share_id: null } : proj
+      ));
+      toast({ title: "Sharing disabled" });
+    } catch {
+      toast({ title: "Error", description: "Failed to disable sharing", variant: "destructive" });
+    }
+  };
+
+  const copyShareLink = async (shareId: string) => {
+    const url = `${window.location.origin}/shared/${shareId}`;
+    await navigator.clipboard.writeText(url);
+    toast({ title: "Link copied!" });
   };
 
   const handleHost = async (p: Project) => {
@@ -199,7 +210,6 @@ const ProjectsPage = () => {
     toast({ title: "Downloaded!", description: `${p.files.length} file(s) exported` });
   };
 
-  // Route guard handles unauthenticated state
   if (!user) return null;
 
   if (loading) {
@@ -251,7 +261,14 @@ const ProjectsPage = () => {
             >
               <div className="flex items-center gap-3">
                 <div className="flex-1 min-w-0">
-                  <h3 className="text-sm font-medium text-foreground truncate">{p.title}</h3>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-sm font-medium text-foreground truncate">{p.title}</h3>
+                    {p.is_shared && (
+                      <span className="shrink-0 inline-flex items-center gap-1 rounded-full bg-blue-500/10 border border-blue-500/20 px-1.5 py-0.5 text-[9px] font-medium text-blue-400">
+                        <Link2 size={8} /> Shared
+                      </span>
+                    )}
+                  </div>
                   <p className="text-xs text-muted-foreground truncate mt-0.5">
                     {p.files.length} file{p.files.length !== 1 ? "s" : ""}
                     {p.conversations.length > 0 && ` · ${p.conversations.length} messages`}
@@ -260,6 +277,7 @@ const ProjectsPage = () => {
                   </p>
                 </div>
               </div>
+
               {/* Hosted badge */}
               {p.is_hosted && p.slug && (
                 <div className="flex items-center gap-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1.5">
@@ -274,6 +292,67 @@ const ProjectsPage = () => {
                 </div>
               )}
 
+              {/* Share panel */}
+              <AnimatePresence>
+                {sharePanel === p.id && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="overflow-hidden"
+                  >
+                    <div className="rounded-lg border border-border bg-background p-3 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-medium text-foreground">Share project</span>
+                        <button onClick={() => setSharePanel(null)} className="text-muted-foreground hover:text-foreground transition-colors">
+                          <X size={14} />
+                        </button>
+                      </div>
+
+                      {p.is_shared && p.share_id ? (
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2 rounded-lg bg-surface-1 border border-border p-2">
+                            <Link2 size={12} className="text-muted-foreground shrink-0" />
+                            <span className="text-[10px] font-mono text-muted-foreground truncate flex-1">
+                              {window.location.origin}/shared/{p.share_id}
+                            </span>
+                            <button
+                              onClick={() => copyShareLink(p.share_id!)}
+                              className="shrink-0 rounded-md bg-foreground px-2 py-1 text-[10px] font-medium text-background active:scale-95 transition-transform"
+                            >
+                              Copy
+                            </button>
+                          </div>
+                          <p className="text-[10px] text-muted-foreground">
+                            Anyone with the link can view this project's files and preview.
+                          </p>
+                          <button
+                            onClick={() => handleDisableShare(p)}
+                            className="flex items-center gap-1.5 w-full justify-center rounded-lg border border-red-500/20 py-1.5 text-xs text-red-400 hover:bg-red-500/10 transition-colors"
+                          >
+                            <EyeOff size={12} />
+                            Disable sharing
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          <p className="text-[10px] text-muted-foreground">
+                            Generate a public link so anyone can view this project.
+                          </p>
+                          <button
+                            onClick={() => handleEnableShare(p)}
+                            className="flex items-center gap-1.5 w-full justify-center rounded-lg bg-foreground py-2 text-xs font-medium text-background active:scale-95 transition-transform"
+                          >
+                            <Eye size={12} />
+                            Enable sharing
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
               <div className="flex items-center gap-1.5">
                 <button
                   onClick={() => handleContinue(p)}
@@ -283,7 +362,6 @@ const ProjectsPage = () => {
                   Continue
                 </button>
 
-                {/* Host / Unhost button */}
                 {p.is_hosted ? (
                   <button
                     onClick={() => handleUnhost(p)}
@@ -310,11 +388,14 @@ const ProjectsPage = () => {
                   <Download size={13} />
                 </button>
                 <button
-                  onClick={() => handleShare(p)}
-                  disabled={sharing === p.id}
-                  className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                  onClick={() => setSharePanel(sharePanel === p.id ? null : p.id)}
+                  className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs transition-colors ${
+                    p.is_shared
+                      ? "border-blue-500/30 text-blue-400 hover:bg-blue-500/10"
+                      : "border-border text-muted-foreground hover:text-foreground"
+                  }`}
                 >
-                  {p.is_shared ? <Check size={13} /> : <Share2 size={13} />}
+                  <Share2 size={13} />
                 </button>
                 <button
                   onClick={() => handleDelete(p.id)}
