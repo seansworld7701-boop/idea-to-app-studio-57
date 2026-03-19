@@ -5,7 +5,10 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider } from "@/hooks/useAuth";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import MaintenanceMode from "@/components/MaintenanceMode";
 import RouteGuard from "@/components/RouteGuard";
+
+const MAINTENANCE_MODE = true;
 import BottomNav from "@/components/BottomNav";
 import HomePage from "@/pages/Home";
 import BuildPage from "@/pages/Build";
@@ -21,37 +24,44 @@ import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
 
-const App = () => (
-  <ErrorBoundary>
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <div className="flex flex-col h-[100dvh] bg-background">
-              <div className="flex-1 overflow-y-auto">
-                <Routes>
-                  <Route path="/" element={<HomePage />} />
-                  <Route path="/build" element={<RouteGuard><BuildPage /></RouteGuard>} />
-                  <Route path="/projects" element={<RouteGuard><ProjectsPage /></RouteGuard>} />
-                  <Route path="/templates" element={<TemplatesPage />} />
-                  <Route path="/account" element={<RouteGuard><AccountPage /></RouteGuard>} />
-                  <Route path="/auth" element={<RouteGuard requireAuth={false} redirectTo="/build"><AuthPage /></RouteGuard>} />
-                  <Route path="/auth/callback" element={<AuthCallback />} />
-                  <Route path="/reset-password" element={<ResetPassword />} />
-                  <Route path="/shared/:shareId" element={<SharedProject />} />
-                  <Route path="/app/:slug" element={<HostedApp />} />
-                  <Route path="*" element={<NotFound />} />
-                </Routes>
+const App = () => {
+  if (MAINTENANCE_MODE) {
+    return <MaintenanceMode />;
+  }
+
+  return (
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <TooltipProvider>
+            <Toaster />
+            <Sonner />
+            <BrowserRouter>
+              <div className="flex flex-col h-[100dvh] bg-background">
+                <div className="flex-1 overflow-y-auto">
+                  <Routes>
+                    <Route path="/" element={<HomePage />} />
+                    <Route path="/build" element={<RouteGuard><BuildPage /></RouteGuard>} />
+                    <Route path="/projects" element={<RouteGuard><ProjectsPage /></RouteGuard>} />
+                    <Route path="/templates" element={<TemplatesPage />} />
+                    <Route path="/account" element={<RouteGuard><AccountPage /></RouteGuard>} />
+                    <Route path="/auth" element={<RouteGuard requireAuth={false} redirectTo="/build"><AuthPage /></RouteGuard>} />
+                    <Route path="/auth/callback" element={<AuthCallback />} />
+                    <Route path="/reset-password" element={<ResetPassword />} />
+                    <Route path="/shared/:shareId" element={<SharedProject />} />
+                    <Route path="/app/:slug" element={<HostedApp />} />
+                    <Route path="*" element={<NotFound />} />
+                  </Routes>
+                </div>
+                <BottomNav />
               </div>
-              <BottomNav />
-            </div>
-          </BrowserRouter>
-        </TooltipProvider>
-      </AuthProvider>
-    </QueryClientProvider>
-  </ErrorBoundary>
-);
+            </BrowserRouter>
+          </TooltipProvider>
+        </AuthProvider>
+      </QueryClientProvider>
+    </ErrorBoundary>
+  );
+};
+
 
 export default App;
