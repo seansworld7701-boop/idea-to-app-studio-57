@@ -161,16 +161,14 @@ Example structure:
 **CRITICAL: NEVER generate plain, unstyled HTML. ALWAYS include beautiful CSS.**
 
 Every web project MUST include:
-- A modern, polished design with gradients, shadows, animations
-- Professional dark color scheme (dark backgrounds like #0a0a0a, #111, #1a1a2e)
+- A modern, polished design appropriate to the project's theme and purpose
+- Choose a color scheme that fits the content (e.g. bright & playful for kids' games, warm for food apps, professional for dashboards, dark for tech tools — NOT always dark/cyber)
 - Smooth transitions and hover effects
 - Proper typography using system-ui or Google Fonts via @import
 - Responsive layout using CSS Grid or Flexbox
-- Glassmorphism, neumorphism, or other modern design trends when appropriate
 - Subtle animations (CSS transitions, keyframes)
-- Card-based layouts with rounded corners and shadows
 - Professional spacing and padding (use rem units)
-- Color accents using vibrant colors against dark backgrounds
+- Design variety: use different aesthetics based on context — minimalist, colorful, retro, elegant, cartoon, material design, etc.
 
 ### 3D Games & Visualizations
 When building 3D games or visualizations:
