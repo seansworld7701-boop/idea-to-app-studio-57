@@ -58,6 +58,7 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const modelMenuRef = useRef<HTMLDivElement>(null);
   const initialPromptSent = useRef(false);
   const modeMenuRef = useRef<HTMLDivElement>(null);
   const { user } = useAuth();
