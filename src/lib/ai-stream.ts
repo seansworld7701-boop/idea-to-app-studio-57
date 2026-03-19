@@ -8,6 +8,15 @@ export type ContentPart =
 
 export type Msg = { role: "user" | "assistant"; content: string | ContentPart[] };
 export type ChatMode = "all" | "vibe-code" | "chat" | "explain" | "review" | "debug";
+export type AIModel = "auto" | "gemini-flash" | "gemini-pro" | "gpt-5" | "gpt-5-mini";
+
+export const AI_MODELS: { id: AIModel; label: string; desc: string }[] = [
+  { id: "auto", label: "Auto", desc: "Best model for the task" },
+  { id: "gemini-flash", label: "Gemini Flash", desc: "Fast & efficient" },
+  { id: "gemini-pro", label: "Gemini Pro", desc: "Most capable" },
+  { id: "gpt-5", label: "GPT-5", desc: "Powerful reasoning" },
+  { id: "gpt-5-mini", label: "GPT-5 Mini", desc: "Fast & smart" },
+];
 
 export async function streamChat({
   messages,
