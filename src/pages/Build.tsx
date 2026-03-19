@@ -91,10 +91,6 @@ const BuildPage = () => {
     loadLastChat();
   }, [user, projectIdParam, initialPrompt]);
 
-  if (preview) {
-    return <PreviewMode data={preview} onBack={() => setPreview(null)} />;
-  }
-
   if (isLoadingChat) {
     return (
       <div className="h-full flex items-center justify-center">
@@ -104,14 +100,17 @@ const BuildPage = () => {
   }
 
   return (
-    <div className="h-full flex flex-col">
-      <ChatInterface
-        onOpenPreview={setPreview}
-        initialPrompt={initialPrompt}
-        projectId={loadedProjectId || projectIdParam}
-        initialMessages={loadedMessages}
-      />
-    </div>
+    <>
+      {preview && <PreviewMode data={preview} onBack={() => setPreview(null)} />}
+      <div className={`h-full flex flex-col ${preview ? "hidden" : ""}`}>
+        <ChatInterface
+          onOpenPreview={setPreview}
+          initialPrompt={initialPrompt}
+          projectId={loadedProjectId || projectIdParam}
+          initialMessages={loadedMessages}
+        />
+      </div>
+    </>
   );
 };
 
