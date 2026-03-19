@@ -259,6 +259,7 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
       await streamChat({
         messages: history,
         mode,
+        model: selectedModel,
         onDelta: (chunk) => {
           assistantSoFar += chunk;
           setMessages((prev) => {
