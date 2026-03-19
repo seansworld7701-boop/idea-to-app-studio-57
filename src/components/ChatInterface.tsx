@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Send, Loader2, ChevronDown, Sparkles, Braces, MessageCircle, FileSearch, ScanEye, Wrench, Trash2, Paperclip, X, History, Mic, MicOff, Cpu } from "lucide-react";
+import { Send, Loader2, ChevronDown, Sparkles, Braces, MessageCircle, FileSearch, ScanEye, Wrench, Trash2, Paperclip, X, History, Mic, MicOff } from "lucide-react";
 import { motion } from "framer-motion";
-import { streamChat, generateImage, fileToBase64, parseAIResponse, type Msg, type ChatMode, type ContentPart, type AIModel, AI_MODELS } from "@/lib/ai-stream";
+import { streamChat, generateImage, fileToBase64, parseAIResponse, type Msg, type ChatMode, type ContentPart } from "@/lib/ai-stream";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -45,9 +45,7 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [mode, setMode] = useState<ChatMode>("all");
-  const [selectedModel, setSelectedModel] = useState<AIModel>("auto");
   const [modeMenuOpen, setModeMenuOpen] = useState(false);
-  const [modelMenuOpen, setModelMenuOpen] = useState(false);
   const [currentProjectId, setCurrentProjectId] = useState<string | null>(projectId || null);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
@@ -58,7 +56,6 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const modelMenuRef = useRef<HTMLDivElement>(null);
   const initialPromptSent = useRef(false);
   const modeMenuRef = useRef<HTMLDivElement>(null);
   const { user } = useAuth();
@@ -80,13 +77,10 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
       if (modeMenuRef.current && !modeMenuRef.current.contains(e.target as Node)) {
         setModeMenuOpen(false);
       }
-      if (modelMenuRef.current && !modelMenuRef.current.contains(e.target as Node)) {
-        setModelMenuOpen(false);
-      }
     };
-    if (modeMenuOpen || modelMenuOpen) document.addEventListener("mousedown", handleClickOutside);
+    if (modeMenuOpen) document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [modeMenuOpen, modelMenuOpen]);
+  }, [modeMenuOpen]);
 
   useEffect(() => {
     if (initialPrompt && !initialPromptSent.current && messages.length === 0) {
@@ -95,7 +89,6 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
     }
   }, [initialPrompt]);
 
-  // Load chat history for the sidebar
   const loadChatHistory = useCallback(async () => {
     if (!user) return;
     const { data } = await supabase
@@ -117,7 +110,6 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
     const title = files.length > 0
       ? files[0]?.name.replace(/\.\w+$/, "") || "Untitled"
       : prompt.slice(0, 50) || "Chat";
-    // Don't store base64 images in conversations (too large)
     const conversations = allMessages.map((m) => ({ role: m.role, content: m.content }));
 
     try {
@@ -210,7 +202,6 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
     setAttachments([]);
     setIsLoading(true);
 
-    // Image generation request
     if (detectImageGenRequest(msgText) && currentAttachments.length === 0) {
       setIsGeneratingImage(true);
       try {
@@ -235,7 +226,6 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
       return;
     }
 
-    // Build multimodal message for AI
     const buildMsgContent = async (): Promise<Msg[]> => {
       const history: Msg[] = [];
       for (const m of newMessages) {
@@ -259,7 +249,6 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
       await streamChat({
         messages: history,
         mode,
-        model: selectedModel,
         onDelta: (chunk) => {
           assistantSoFar += chunk;
           setMessages((prev) => {
@@ -503,11 +492,11 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
 
       {/* Input */}
       <div className="border-t border-border bg-background/80 backdrop-blur-xl px-4 py-3 pb-20">
-        {/* Mode & Model switcher */}
+        {/* Mode switcher */}
         <div className="flex items-center gap-2 mb-2">
           <div className="relative" ref={modeMenuRef}>
             <button
-              onClick={() => { setModeMenuOpen((v) => !v); setModelMenuOpen(false); }}
+              onClick={() => setModeMenuOpen((v) => !v)}
               className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-surface-1 transition-all"
             >
               <ActiveIcon size={14} />
@@ -538,39 +527,6 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
                     </button>
                   );
                 })}
-              </motion.div>
-            )}
-          </div>
-
-          <div className="relative" ref={modelMenuRef}>
-            <button
-              onClick={() => { setModelMenuOpen((v) => !v); setModeMenuOpen(false); }}
-              className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-surface-1 transition-all"
-            >
-              <Cpu size={14} />
-              {AI_MODELS.find((m) => m.id === selectedModel)?.label || "Auto"}
-              <ChevronDown size={12} className={`transition-transform ${modelMenuOpen ? "rotate-180" : ""}`} />
-            </button>
-            {modelMenuOpen && (
-              <motion.div
-                initial={{ opacity: 0, y: 4 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="absolute bottom-full left-0 mb-1 w-48 rounded-xl border border-border bg-background shadow-lg overflow-hidden z-50"
-              >
-                {AI_MODELS.map((m) => (
-                  <button
-                    key={m.id}
-                    onClick={() => { setSelectedModel(m.id); setModelMenuOpen(false); }}
-                    className={`flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-xs transition-colors ${
-                      selectedModel === m.id ? "bg-surface-1 text-foreground" : "text-muted-foreground hover:text-foreground hover:bg-surface-1/50"
-                    }`}
-                  >
-                    <div>
-                      <div className="font-medium">{m.label}</div>
-                      <div className="text-[10px] text-muted-foreground">{m.desc}</div>
-                    </div>
-                  </button>
-                ))}
               </motion.div>
             )}
           </div>
@@ -633,7 +589,6 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
             className="flex-1 resize-none bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none max-h-32 py-1 leading-normal"
           />
 
-          {/* Mic button */}
           <button
             onClick={handleMicToggle}
             disabled={isLoading}
