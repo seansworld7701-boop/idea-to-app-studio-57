@@ -8,16 +8,19 @@ export type ContentPart =
 
 export type Msg = { role: "user" | "assistant"; content: string | ContentPart[] };
 export type ChatMode = "all" | "vibe-code" | "chat" | "explain" | "review" | "debug";
+export type PersonaId = "default" | "senior-dev" | "designer" | "tutor" | "startup" | "creative";
 
 export async function streamChat({
   messages,
   mode = "all",
+  persona = "default",
   onDelta,
   onDone,
   onError,
 }: {
   messages: Msg[];
   mode?: ChatMode;
+  persona?: PersonaId;
   onDelta: (text: string) => void;
   onDone: () => void;
   onError: (error: string) => void;
@@ -30,7 +33,7 @@ export async function streamChat({
         "Content-Type": "application/json",
         Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
       },
-      body: JSON.stringify({ messages, mode }),
+      body: JSON.stringify({ messages, mode, persona }),
     });
   } catch {
     onError("Network error. Please check your connection and try again.");

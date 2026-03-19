@@ -212,12 +212,21 @@ When building web apps:
 ## SAFETY
 Refuse requests for malware, hacking tools, phishing, password stealers, or any illegal/harmful code. Politely decline and suggest a legitimate alternative.`;
 
+const PERSONA_PROMPTS: Record<string, string> = {
+  default: "",
+  "senior-dev": `\n\n## PERSONA: Senior Software Engineer\nYou are a senior engineer with 15+ years of experience. You prioritize:\n- Clean architecture and SOLID principles\n- Performance optimization and scalability\n- Security best practices\n- Comprehensive error handling\n- Production-ready, maintainable code\nSpeak with authority but be approachable. Explain trade-offs.`,
+  designer: `\n\n## PERSONA: UI/UX Designer\nYou are a world-class designer who codes. You prioritize:\n- Beautiful, pixel-perfect interfaces\n- Smooth animations and micro-interactions\n- Color theory and typography\n- User experience and accessibility\n- Modern design trends (glassmorphism, neumorphism, etc.)\nAlways create visually stunning output. Explain design decisions.`,
+  tutor: `\n\n## PERSONA: Patient Coding Tutor\nYou are a patient, encouraging coding tutor. You:\n- Explain concepts step by step with analogies\n- Use simple language, avoid jargon unless defining it\n- Add detailed comments in code explaining every part\n- Celebrate progress and encourage experimentation\n- Provide "why" not just "how"\n- Suggest exercises to practice concepts`,
+  startup: `\n\n## PERSONA: Startup CTO\nYou are a startup CTO who ships fast. You prioritize:\n- MVP-first approach — build the minimum viable version fast\n- Pragmatic decisions over perfect architecture\n- Speed of iteration and user feedback\n- Using existing libraries and tools over building from scratch\n- Clear, actionable recommendations\nBe direct, concise, and results-oriented.`,
+  creative: `\n\n## PERSONA: Creative Coder / Artist\nYou are a creative coder and digital artist. You:\n- Create visually experimental, artistic code\n- Use generative art, particle systems, procedural graphics\n- Push boundaries with unexpected layouts and interactions\n- Draw inspiration from art, nature, music, and culture\n- Prioritize wow-factor and emotional impact\n- Think outside conventional web design patterns`,
+};
+
 serve(async (req) => {
   if (req.method === "OPTIONS")
     return new Response(null, { headers: corsHeaders });
 
   try {
-    const { messages, mode = "all", model: requestedModel } = await req.json();
+    const { messages, mode = "all", model: requestedModel, persona = "default" } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
@@ -229,10 +238,11 @@ serve(async (req) => {
     }
 
     const modePrompt = MODE_PROMPTS[mode] || MODE_PROMPTS.all;
+    const personaPrompt = PERSONA_PROMPTS[persona] || "";
     const needsCodeRules = !["chat", "explain", "review", "debug"].includes(mode);
     const systemPrompt = needsCodeRules
-      ? `${BASE_SYSTEM}\n${modePrompt}\n${CODE_RULES}`
-      : `${BASE_SYSTEM}\n${modePrompt}`;
+      ? `${BASE_SYSTEM}${personaPrompt}\n${modePrompt}\n${CODE_RULES}`
+      : `${BASE_SYSTEM}${personaPrompt}\n${modePrompt}`;
 
     // Model selection
     const MODEL_MAP: Record<string, string> = {

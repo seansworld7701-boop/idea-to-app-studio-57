@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Copy, Check, RefreshCw, Download } from "lucide-react";
+import { Copy, Check, RefreshCw, Download, Bookmark, BookmarkCheck } from "lucide-react";
 import { useState } from "react";
 import ReactMarkdown from "react-markdown";
 import ArtifactCard from "../ArtifactCard";
@@ -19,9 +19,11 @@ interface MessageBubbleProps {
   isLoggedIn: boolean;
   onOpenPreview: (html: string, title: string) => void;
   onRetry?: () => void;
+  isPinned?: boolean;
+  onTogglePin?: () => void;
 }
 
-const MessageBubble = ({ message, isLoggedIn, onOpenPreview, onRetry }: MessageBubbleProps) => {
+const MessageBubble = ({ message, isLoggedIn, onOpenPreview, onRetry, isPinned, onTogglePin }: MessageBubbleProps) => {
   const [copied, setCopied] = useState(false);
   const [expandedImg, setExpandedImg] = useState<string | null>(null);
 
@@ -128,6 +130,17 @@ const MessageBubble = ({ message, isLoggedIn, onOpenPreview, onRetry }: MessageB
             {copied ? <Check size={11} /> : <Copy size={11} />}
             {copied ? "Copied" : "Copy"}
           </button>
+          {onTogglePin && (
+            <button
+              onClick={onTogglePin}
+              className={`flex items-center gap-1 rounded-md px-2 py-1 text-[10px] transition-colors ${
+                isPinned ? "text-foreground" : "text-muted-foreground/60 hover:text-muted-foreground"
+              }`}
+            >
+              {isPinned ? <BookmarkCheck size={11} /> : <Bookmark size={11} />}
+              {isPinned ? "Pinned" : "Pin"}
+            </button>
+          )}
           {onRetry && (
             <button
               onClick={onRetry}

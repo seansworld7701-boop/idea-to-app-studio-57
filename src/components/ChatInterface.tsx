@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Send, Loader2, ChevronDown, Sparkles, Braces, MessageCircle, FileSearch, ScanEye, Wrench, Trash2, Paperclip, X, History, Mic, MicOff } from "lucide-react";
+import { Send, Loader2, ChevronDown, Sparkles, Braces, MessageCircle, FileSearch, ScanEye, Wrench, Trash2, Paperclip, X, History, Mic, MicOff, User, Palette, GraduationCap, Rocket, Wand2, Code2 } from "lucide-react";
 import { motion } from "framer-motion";
-import { streamChat, generateImage, fileToBase64, parseAIResponse, type Msg, type ChatMode, type ContentPart } from "@/lib/ai-stream";
+import { streamChat, generateImage, fileToBase64, parseAIResponse, type Msg, type ChatMode, type ContentPart, type PersonaId } from "@/lib/ai-stream";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -9,6 +9,9 @@ import type { PreviewData } from "@/pages/Build";
 import MessageBubble from "./chat/MessageBubble";
 import EmptyState from "./chat/EmptyState";
 import LoadingIndicator from "./chat/LoadingIndicator";
+import FollowUpSuggestions from "./chat/FollowUpSuggestions";
+import ChatToolbar from "./chat/ChatToolbar";
+import CodeDiffView from "./chat/CodeDiffView";
 
 const MODES: { id: ChatMode; label: string; icon: typeof Braces; desc: string }[] = [
   { id: "all", label: "All", icon: Sparkles, desc: "Code + conversation" },
@@ -17,6 +20,15 @@ const MODES: { id: ChatMode; label: string; icon: typeof Braces; desc: string }[
   { id: "explain", label: "Explain", icon: FileSearch, desc: "Explain code in detail" },
   { id: "review", label: "Review", icon: ScanEye, desc: "Code review & audit" },
   { id: "debug", label: "Debug", icon: Wrench, desc: "Find & fix bugs" },
+];
+
+const PERSONAS: { id: PersonaId; label: string; icon: typeof User; desc: string }[] = [
+  { id: "default", label: "Default", icon: Sparkles, desc: "Balanced all-rounder" },
+  { id: "senior-dev", label: "Senior Dev", icon: Code2, desc: "Clean, scalable code" },
+  { id: "designer", label: "Designer", icon: Palette, desc: "Pixel-perfect UI" },
+  { id: "tutor", label: "Tutor", icon: GraduationCap, desc: "Step-by-step learning" },
+  { id: "startup", label: "Startup CTO", icon: Rocket, desc: "Ship fast, iterate" },
+  { id: "creative", label: "Creative", icon: Wand2, desc: "Experimental & artistic" },
 ];
 
 interface Attachment {
@@ -31,7 +43,7 @@ export interface Message {
   content: string;
   images?: string[];
   attachments?: { name: string; preview: string; type: string }[];
-  sender?: string; // email of who sent the message (for collab)
+  sender?: string;
 }
 
 interface ChatInterfaceProps {
@@ -46,20 +58,28 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [mode, setMode] = useState<ChatMode>("all");
+  const [persona, setPersona] = useState<PersonaId>("default");
   const [modeMenuOpen, setModeMenuOpen] = useState(false);
+  const [personaMenuOpen, setPersonaMenuOpen] = useState(false);
   const [currentProjectId, setCurrentProjectId] = useState<string | null>(projectId || null);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [chatHistory, setChatHistory] = useState<{ id: string; title: string; updated_at: string }[]>([]);
   const [isRecording, setIsRecording] = useState(false);
+  const [pinnedIds, setPinnedIds] = useState<Set<string>>(new Set());
+  const [showDiff, setShowDiff] = useState(false);
+  const [previousFiles, setPreviousFiles] = useState<{ name: string; content: string; language: string }[]>([]);
   const recognitionRef = useRef<any>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messageRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const initialPromptSent = useRef(false);
   const modeMenuRef = useRef<HTMLDivElement>(null);
+  const personaMenuRef = useRef<HTMLDivElement>(null);
   const { user } = useAuth();
+  const lastSaveRef = useRef<number>(0);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -75,13 +95,12 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (modeMenuRef.current && !modeMenuRef.current.contains(e.target as Node)) {
-        setModeMenuOpen(false);
-      }
+      if (modeMenuRef.current && !modeMenuRef.current.contains(e.target as Node)) setModeMenuOpen(false);
+      if (personaMenuRef.current && !personaMenuRef.current.contains(e.target as Node)) setPersonaMenuOpen(false);
     };
-    if (modeMenuOpen) document.addEventListener("mousedown", handleClickOutside);
+    if (modeMenuOpen || personaMenuOpen) document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [modeMenuOpen]);
+  }, [modeMenuOpen, personaMenuOpen]);
 
   useEffect(() => {
     if (initialPrompt && !initialPromptSent.current && messages.length === 0) {
@@ -106,21 +125,14 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
   }, [showHistory, loadChatHistory]);
 
   // Realtime subscription for collaborative projects
-  const lastSaveRef = useRef<number>(0);
   useEffect(() => {
     if (!currentProjectId) return;
     const channel = supabase
       .channel(`project-${currentProjectId}`)
       .on(
         'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'projects',
-          filter: `id=eq.${currentProjectId}`,
-        },
+        { event: 'UPDATE', schema: 'public', table: 'projects', filter: `id=eq.${currentProjectId}` },
         (payload) => {
-          // Skip if we just saved (within 2s) to avoid echo
           if (Date.now() - lastSaveRef.current < 2000) return;
           const newConversations = payload.new?.conversations;
           if (!newConversations || !Array.isArray(newConversations)) return;
@@ -132,12 +144,9 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
               content: m.content,
               sender: m.sender,
             }));
-            // Accept if different count or different last message content
             const lastPrev = prev[prev.length - 1]?.content;
             const lastIncoming = incoming[incoming.length - 1]?.content;
-            if (incoming.length !== prev.length || lastIncoming !== lastPrev) {
-              return incoming;
-            }
+            if (incoming.length !== prev.length || lastIncoming !== lastPrev) return incoming;
             return prev;
           });
         }
@@ -184,7 +193,6 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files) return;
-
     const newAttachments: Attachment[] = [];
     for (const file of Array.from(files)) {
       if (file.size > 10 * 1024 * 1024) {
@@ -195,7 +203,6 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
       const preview = isImage ? await fileToBase64(file) : "";
       newAttachments.push({ file, preview, type: isImage ? "image" : "file" });
     }
-
     setAttachments((prev) => [...prev, ...newAttachments].slice(0, 5));
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
@@ -207,16 +214,9 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
   const detectImageGenRequest = (text: string): boolean => {
     const lower = text.toLowerCase();
     const patterns = [
-      /generate\s+(an?\s+)?image/,
-      /create\s+(an?\s+)?image/,
-      /draw\s+(me\s+)?(an?\s+)?/,
-      /make\s+(me\s+)?(an?\s+)?image/,
-      /generate\s+(an?\s+)?picture/,
-      /create\s+(an?\s+)?picture/,
-      /make\s+(an?\s+)?picture/,
-      /image\s+of\b/,
-      /picture\s+of\b/,
-      /illustration\s+of\b/,
+      /generate\s+(an?\s+)?image/, /create\s+(an?\s+)?image/, /draw\s+(me\s+)?(an?\s+)?/,
+      /make\s+(me\s+)?(an?\s+)?image/, /generate\s+(an?\s+)?picture/, /create\s+(an?\s+)?picture/,
+      /make\s+(an?\s+)?picture/, /image\s+of\b/, /picture\s+of\b/, /illustration\s+of\b/,
       /generate\s+(an?\s+)?illustration/,
     ];
     return patterns.some((p) => p.test(lower));
@@ -226,12 +226,7 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
     const msgText = (text || input).trim();
     if ((!msgText && attachments.length === 0) || isLoading) return;
 
-    const userAttachments = attachments.map((a) => ({
-      name: a.file.name,
-      preview: a.preview,
-      type: a.file.type,
-    }));
-
+    const userAttachments = attachments.map((a) => ({ name: a.file.name, preview: a.preview, type: a.file.type }));
     const userImages = attachments.filter((a) => a.type === "image").map((a) => a.preview);
 
     const userMsg: Message = {
@@ -243,12 +238,20 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
       sender: user?.email || undefined,
     };
 
+    // Track previous files for diff
+    const lastAssistant = [...messages].reverse().find((m) => m.role === "assistant");
+    if (lastAssistant) {
+      const { files } = parseAIResponse(lastAssistant.content);
+      if (files.length > 0) setPreviousFiles(files);
+    }
+
     const newMessages = [...messages, userMsg];
     setMessages(newMessages);
     setInput("");
     const currentAttachments = [...attachments];
     setAttachments([]);
     setIsLoading(true);
+    setShowDiff(false);
 
     if (detectImageGenRequest(msgText) && currentAttachments.length === 0) {
       setIsGeneratingImage(true);
@@ -279,9 +282,7 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
       for (const m of newMessages) {
         if (m.role === "user" && m.images && m.images.length > 0) {
           const parts: ContentPart[] = [{ type: "text", text: m.content || "What is this?" }];
-          for (const imgUrl of m.images) {
-            parts.push({ type: "image_url", image_url: { url: imgUrl } });
-          }
+          for (const imgUrl of m.images) parts.push({ type: "image_url", image_url: { url: imgUrl } });
           history.push({ role: "user", content: parts });
         } else {
           history.push({ role: m.role, content: m.content });
@@ -297,14 +298,13 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
       await streamChat({
         messages: history,
         mode,
+        persona,
         onDelta: (chunk) => {
           assistantSoFar += chunk;
           setMessages((prev) => {
             const last = prev[prev.length - 1];
             if (last?.role === "assistant" && last.id === "streaming") {
-              return prev.map((m, i) =>
-                i === prev.length - 1 ? { ...m, content: assistantSoFar } : m
-              );
+              return prev.map((m, i) => i === prev.length - 1 ? { ...m, content: assistantSoFar } : m);
             }
             return [...prev, { id: "streaming", role: "assistant", content: assistantSoFar }];
           });
@@ -345,6 +345,9 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
     setMessages([]);
     setCurrentProjectId(null);
     setAttachments([]);
+    setPinnedIds(new Set());
+    setPreviousFiles([]);
+    setShowDiff(false);
   };
 
   const handleMicToggle = () => {
@@ -354,62 +357,42 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
       setIsRecording(false);
       return;
     }
-
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) {
-      toast({ title: "Not supported", description: "Voice input is not supported in this browser. Try Chrome or Edge.", variant: "destructive" });
+      toast({ title: "Not supported", description: "Voice input is not supported in this browser.", variant: "destructive" });
       return;
     }
-
     try {
       const recognition = new SpeechRecognition();
       recognition.continuous = false;
       recognition.interimResults = true;
       recognition.lang = navigator.language || "en-US";
-      recognition.maxAlternatives = 1;
       recognitionRef.current = recognition;
-
       let finalTranscript = "";
-
       recognition.onresult = (event: any) => {
         let interim = "";
         for (let i = event.resultIndex; i < event.results.length; i++) {
           const transcript = event.results[i][0].transcript;
-          if (event.results[i].isFinal) {
-            finalTranscript += transcript + " ";
-          } else {
-            interim = transcript;
-          }
+          if (event.results[i].isFinal) finalTranscript += transcript + " ";
+          else interim = transcript;
         }
         const combined = (finalTranscript + interim).trim();
-        if (combined) {
-          setInput((prev) => {
-            const base = prev.replace(/\s*\[listening...\]$/, "").trim();
-            return base ? `${base} ${combined}` : combined;
-          });
-        }
+        if (combined) setInput((prev) => {
+          const base = prev.replace(/\s*\[listening...\]$/, "").trim();
+          return base ? `${base} ${combined}` : combined;
+        });
       };
-
       recognition.onerror = (e: any) => {
-        console.error("Speech recognition error:", e.error);
         recognitionRef.current = null;
         setIsRecording(false);
         if (e.error === "not-allowed" || e.error === "permission-denied") {
-          toast({ title: "Microphone blocked", description: "Please allow microphone access in your browser settings.", variant: "destructive" });
-        } else if (e.error !== "aborted" && e.error !== "no-speech") {
-          toast({ title: "Voice error", description: `Speech recognition error: ${e.error}`, variant: "destructive" });
+          toast({ title: "Microphone blocked", variant: "destructive" });
         }
       };
-
-      recognition.onend = () => {
-        recognitionRef.current = null;
-        setIsRecording(false);
-      };
-
+      recognition.onend = () => { recognitionRef.current = null; setIsRecording(false); };
       recognition.start();
       setIsRecording(true);
-    } catch (err) {
-      console.error("Failed to start speech recognition:", err);
+    } catch {
       toast({ title: "Error", description: "Could not start voice input", variant: "destructive" });
     }
   };
@@ -419,20 +402,11 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
   }, []);
 
   const handleLoadChat = async (id: string) => {
-    const { data } = await supabase
-      .from("projects")
-      .select("id, conversations")
-      .eq("id", id)
-      .single();
-
+    const { data } = await supabase.from("projects").select("id, conversations").eq("id", id).single();
     if (data?.conversations && Array.isArray(data.conversations)) {
-      setMessages(
-        (data.conversations as any[]).map((m: any) => ({
-          id: crypto.randomUUID(),
-          role: m.role,
-          content: m.content,
-        }))
-      );
+      setMessages((data.conversations as any[]).map((m: any) => ({
+        id: crypto.randomUUID(), role: m.role, content: m.content,
+      })));
       setCurrentProjectId(data.id);
     }
     setShowHistory(false);
@@ -446,9 +420,48 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
     onOpenPreview?.({ html, title });
   };
 
+  const handleTogglePin = (id: string) => {
+    setPinnedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const handleScrollToMessage = (id: string) => {
+    const el = messageRefs.current.get(id);
+    el?.scrollIntoView({ behavior: "smooth", block: "center" });
+    // Flash highlight
+    el?.classList.add("ring-1", "ring-foreground/20", "rounded-lg");
+    setTimeout(() => el?.classList.remove("ring-1", "ring-foreground/20", "rounded-lg"), 2000);
+  };
+
+  const handleExportChat = () => {
+    const md = messages.map((m) => {
+      const role = m.role === "user" ? "**You**" : "**Dust AI**";
+      return `${role}\n\n${m.content}\n\n---\n`;
+    }).join("\n");
+    const blob = new Blob([md], { type: "text/markdown" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "dust-ai-chat.md";
+    a.click();
+    URL.revokeObjectURL(url);
+    toast({ title: "Chat exported!" });
+  };
+
+  // Get current files for diff
+  const lastAssistantMsg = [...messages].reverse().find((m) => m.role === "assistant" && m.id !== "streaming");
+  const currentFiles = lastAssistantMsg ? parseAIResponse(lastAssistantMsg.content).files : [];
+  const hasDiff = previousFiles.length > 0 && currentFiles.length > 0;
+
   const isEmpty = messages.length === 0;
   const activeMode = MODES.find((m) => m.id === mode)!;
   const ActiveIcon = activeMode.icon;
+  const activePersona = PERSONAS.find((p) => p.id === persona)!;
+  const PersonaIcon = activePersona.icon;
 
   const placeholders: Record<ChatMode, string> = {
     "all": "Say hi or describe what to build...",
@@ -459,25 +472,47 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
     "debug": "Describe the bug or paste code...",
   };
 
+  // Last assistant content for follow-up suggestions
+  const lastAssistantContent = messages.filter((m) => m.role === "assistant").pop()?.content || "";
+
   return (
     <div className="flex flex-col h-full relative">
       {/* Top bar */}
       {!isEmpty && (
-        <div className="flex items-center justify-between px-4 pt-2">
-          <button
-            onClick={() => setShowHistory(!showHistory)}
-            className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-surface-1 transition-all"
-          >
-            <History size={12} />
-            History
-          </button>
-          <button
-            onClick={handleClearChat}
-            className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-surface-1 transition-all"
-          >
-            <Trash2 size={12} />
-            New chat
-          </button>
+        <div className="flex items-center justify-between px-4 pt-2 relative">
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setShowHistory(!showHistory)}
+              className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-surface-1 transition-all"
+            >
+              <History size={12} /> History
+            </button>
+            <ChatToolbar
+              messages={messages}
+              pinnedIds={pinnedIds}
+              onTogglePin={handleTogglePin}
+              onScrollToMessage={handleScrollToMessage}
+              onExport={handleExportChat}
+            />
+          </div>
+          <div className="flex items-center gap-1">
+            {hasDiff && (
+              <button
+                onClick={() => setShowDiff(!showDiff)}
+                className={`flex items-center gap-1 rounded-lg px-2 py-1.5 text-[10px] transition-all ${
+                  showDiff ? "bg-surface-1 text-foreground" : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <Code2 size={11} /> Diff
+              </button>
+            )}
+            <button
+              onClick={handleClearChat}
+              className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-surface-1 transition-all"
+            >
+              <Trash2 size={12} /> New
+            </button>
+          </div>
         </div>
       )}
 
@@ -489,9 +524,7 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
           className="absolute top-10 left-2 right-2 z-40 rounded-xl border border-border bg-background shadow-xl max-h-60 overflow-y-auto"
         >
           <div className="p-2 space-y-0.5">
-            <div className="px-2 py-1.5 text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
-              Recent Chats
-            </div>
+            <div className="px-2 py-1.5 text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Recent Chats</div>
             {chatHistory.length === 0 ? (
               <div className="px-2 py-3 text-xs text-muted-foreground text-center">No previous chats</div>
             ) : (
@@ -500,15 +533,11 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
                   key={chat.id}
                   onClick={() => handleLoadChat(chat.id)}
                   className={`flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-left text-xs transition-colors ${
-                    currentProjectId === chat.id
-                      ? "bg-surface-1 text-foreground"
-                      : "text-muted-foreground hover:text-foreground hover:bg-surface-1/50"
+                    currentProjectId === chat.id ? "bg-surface-1 text-foreground" : "text-muted-foreground hover:text-foreground hover:bg-surface-1/50"
                   }`}
                 >
                   <span className="truncate flex-1">{chat.title}</span>
-                  <span className="text-[9px] text-muted-foreground/60 ml-2 shrink-0">
-                    {new Date(chat.updated_at).toLocaleDateString()}
-                  </span>
+                  <span className="text-[9px] text-muted-foreground/60 ml-2 shrink-0">{new Date(chat.updated_at).toLocaleDateString()}</span>
                 </button>
               ))
             )}
@@ -516,20 +545,45 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
         </motion.div>
       )}
 
-      <div className="flex-1 overflow-y-auto px-4 pb-4" onClick={() => showHistory && setShowHistory(false)}>
+      <div className="flex-1 overflow-y-auto px-4 pb-4" onClick={() => { showHistory && setShowHistory(false); }}>
         {isEmpty ? (
           <EmptyState onSuggestionClick={(s) => handleSend(s)} />
         ) : (
           <div className="space-y-4 pt-4">
             {messages.map((msg) => (
-              <MessageBubble
+              <div
                 key={msg.id}
-                message={msg}
-                isLoggedIn={!!user}
-                onOpenPreview={handleOpenPreview}
-                onRetry={msg.role === "assistant" && msg.id !== "streaming" ? handleRetry : undefined}
-              />
+                ref={(el) => { if (el) messageRefs.current.set(msg.id, el); }}
+                className="transition-all duration-300"
+              >
+                <MessageBubble
+                  message={msg}
+                  isLoggedIn={!!user}
+                  onOpenPreview={handleOpenPreview}
+                  onRetry={msg.role === "assistant" && msg.id !== "streaming" ? handleRetry : undefined}
+                  isPinned={pinnedIds.has(msg.id)}
+                  onTogglePin={() => handleTogglePin(msg.id)}
+                />
+              </div>
             ))}
+
+            {/* Follow-up suggestions */}
+            {!isLoading && lastAssistantContent && messages[messages.length - 1]?.role === "assistant" && (
+              <FollowUpSuggestions
+                lastAssistantContent={lastAssistantContent}
+                onSuggestionClick={(s) => handleSend(s)}
+              />
+            )}
+
+            {/* Code diff */}
+            {showDiff && hasDiff && (
+              <CodeDiffView
+                previousFiles={previousFiles}
+                currentFiles={currentFiles}
+                onClose={() => setShowDiff(false)}
+              />
+            )}
+
             {isLoading && messages[messages.length - 1]?.role !== "assistant" && (
               <LoadingIndicator text={isGeneratingImage ? "Generating image..." : undefined} />
             )}
@@ -540,22 +594,23 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
 
       {/* Input */}
       <div className="border-t border-border bg-background/80 backdrop-blur-xl px-4 py-3 pb-20">
-        {/* Mode switcher */}
-        <div className="flex items-center gap-2 mb-2">
+        {/* Mode + Persona switcher */}
+        <div className="flex items-center gap-1 mb-2">
+          {/* Mode */}
           <div className="relative" ref={modeMenuRef}>
             <button
-              onClick={() => setModeMenuOpen((v) => !v)}
+              onClick={() => { setModeMenuOpen((v) => !v); setPersonaMenuOpen(false); }}
               className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-surface-1 transition-all"
             >
-              <ActiveIcon size={14} />
+              <ActiveIcon size={13} />
               {activeMode.label}
-              <ChevronDown size={12} className={`transition-transform ${modeMenuOpen ? "rotate-180" : ""}`} />
+              <ChevronDown size={11} className={`transition-transform ${modeMenuOpen ? "rotate-180" : ""}`} />
             </button>
             {modeMenuOpen && (
               <motion.div
                 initial={{ opacity: 0, y: 4 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="absolute bottom-full left-0 mb-1 w-52 rounded-xl border border-border bg-background shadow-lg overflow-hidden z-50"
+                className="absolute bottom-full left-0 mb-1 w-48 rounded-xl border border-border bg-background shadow-lg overflow-hidden z-50"
               >
                 {MODES.map((m) => {
                   const Icon = m.icon;
@@ -563,14 +618,52 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
                     <button
                       key={m.id}
                       onClick={() => { setMode(m.id); setModeMenuOpen(false); }}
-                      className={`flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-xs transition-colors ${
+                      className={`flex w-full items-center gap-2.5 px-3 py-2 text-left text-xs transition-colors ${
                         mode === m.id ? "bg-surface-1 text-foreground" : "text-muted-foreground hover:text-foreground hover:bg-surface-1/50"
                       }`}
                     >
-                      <Icon size={14} />
+                      <Icon size={13} />
                       <div>
                         <div className="font-medium">{m.label}</div>
                         <div className="text-[10px] text-muted-foreground">{m.desc}</div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </motion.div>
+            )}
+          </div>
+
+          {/* Persona */}
+          <div className="relative" ref={personaMenuRef}>
+            <button
+              onClick={() => { setPersonaMenuOpen((v) => !v); setModeMenuOpen(false); }}
+              className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-surface-1 transition-all"
+            >
+              <PersonaIcon size={13} />
+              {activePersona.label}
+              <ChevronDown size={11} className={`transition-transform ${personaMenuOpen ? "rotate-180" : ""}`} />
+            </button>
+            {personaMenuOpen && (
+              <motion.div
+                initial={{ opacity: 0, y: 4 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="absolute bottom-full left-0 mb-1 w-52 rounded-xl border border-border bg-background shadow-lg overflow-hidden z-50"
+              >
+                {PERSONAS.map((p) => {
+                  const Icon = p.icon;
+                  return (
+                    <button
+                      key={p.id}
+                      onClick={() => { setPersona(p.id); setPersonaMenuOpen(false); }}
+                      className={`flex w-full items-center gap-2.5 px-3 py-2 text-left text-xs transition-colors ${
+                        persona === p.id ? "bg-surface-1 text-foreground" : "text-muted-foreground hover:text-foreground hover:bg-surface-1/50"
+                      }`}
+                    >
+                      <Icon size={13} />
+                      <div>
+                        <div className="font-medium">{p.label}</div>
+                        <div className="text-[10px] text-muted-foreground">{p.desc}</div>
                       </div>
                     </button>
                   );
@@ -586,17 +679,11 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
             {attachments.map((att, i) => (
               <div key={i} className="relative shrink-0 group">
                 {att.type === "image" ? (
-                  <img
-                    src={att.preview}
-                    alt={att.file.name}
-                    className="h-16 w-16 rounded-lg object-cover border border-border"
-                  />
+                  <img src={att.preview} alt={att.file.name} className="h-16 w-16 rounded-lg object-cover border border-border" />
                 ) : (
                   <div className="h-16 w-16 rounded-lg border border-border bg-surface-1 flex flex-col items-center justify-center gap-1 px-1">
                     <Paperclip size={14} className="text-muted-foreground" />
-                    <span className="text-[8px] text-muted-foreground truncate w-full text-center">
-                      {att.file.name}
-                    </span>
+                    <span className="text-[8px] text-muted-foreground truncate w-full text-center">{att.file.name}</span>
                   </div>
                 )}
                 <button
@@ -618,15 +705,10 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
           >
             <Paperclip size={18} />
           </button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            multiple
+          <input ref={fileInputRef} type="file" multiple
             accept="image/*,.pdf,.txt,.md,.json,.csv,.xml,.html,.css,.js,.ts,.jsx,.tsx,.py,.java,.cpp,.c,.go,.rs,.sql,.yaml,.yml,.sh"
-            onChange={handleFileSelect}
-            className="hidden"
+            onChange={handleFileSelect} className="hidden"
           />
-
           <textarea
             ref={textareaRef}
             value={input}
@@ -636,20 +718,16 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
             rows={1}
             className="flex-1 resize-none bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none max-h-32 py-1 leading-normal"
           />
-
           <button
             onClick={handleMicToggle}
             disabled={isLoading}
             className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-all disabled:opacity-30 ${
-              isRecording
-                ? "bg-red-500 text-white animate-pulse"
-                : "text-muted-foreground hover:text-foreground hover:bg-background/50"
+              isRecording ? "bg-destructive text-destructive-foreground animate-pulse" : "text-muted-foreground hover:text-foreground hover:bg-background/50"
             }`}
             title={isRecording ? "Stop recording" : "Voice input"}
           >
             {isRecording ? <MicOff size={16} /> : <Mic size={16} />}
           </button>
-
           <button
             onClick={() => handleSend()}
             disabled={(!input.trim() && attachments.length === 0) || isLoading}
