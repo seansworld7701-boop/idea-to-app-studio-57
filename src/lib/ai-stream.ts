@@ -13,6 +13,7 @@ export type PersonaId = "default" | "senior-dev" | "designer" | "tutor" | "start
 export async function streamChat({
   messages,
   mode = "all",
+  persona = "default",
   onDelta,
   onDone,
   onError,
