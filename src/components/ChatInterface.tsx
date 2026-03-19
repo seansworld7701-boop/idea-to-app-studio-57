@@ -80,10 +80,13 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
       if (modeMenuRef.current && !modeMenuRef.current.contains(e.target as Node)) {
         setModeMenuOpen(false);
       }
+      if (modelMenuRef.current && !modelMenuRef.current.contains(e.target as Node)) {
+        setModelMenuOpen(false);
+      }
     };
-    if (modeMenuOpen) document.addEventListener("mousedown", handleClickOutside);
+    if (modeMenuOpen || modelMenuOpen) document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [modeMenuOpen]);
+  }, [modeMenuOpen, modelMenuOpen]);
 
   useEffect(() => {
     if (initialPrompt && !initialPromptSent.current && messages.length === 0) {
