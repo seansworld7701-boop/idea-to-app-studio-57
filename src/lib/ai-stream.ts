@@ -27,6 +27,7 @@ export async function streamChat({
 }: {
   messages: Msg[];
   mode?: ChatMode;
+  model?: AIModel;
   onDelta: (text: string) => void;
   onDone: () => void;
   onError: (error: string) => void;
