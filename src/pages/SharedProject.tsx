@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useParams, useNavigate, useSearchParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Loader2, ArrowLeft, GitFork } from "lucide-react";
@@ -17,7 +17,6 @@ interface SharedProjectData {
   title: string;
   prompt: string | null;
   files: ProjectFile[];
-  conversations: { role: string; content: string }[];
 }
 
 function parseFiles(files: Json | null): ProjectFile[] {
@@ -28,13 +27,11 @@ function parseFiles(files: Json | null): ProjectFile[] {
 const SharedProject = () => {
   const { shareId } = useParams();
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const [project, setProject] = useState<SharedProjectData | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [forking, setForking] = useState(false);
-  const isCollab = searchParams.get("collab") === "true";
 
   useEffect(() => {
     if (!shareId) { setNotFound(true); setLoading(false); return; }
@@ -42,7 +39,7 @@ const SharedProject = () => {
       try {
         const { data, error } = await supabase
           .from("projects")
-          .select("title, prompt, files, conversations")
+          .select("title, prompt, files")
           .eq("share_id", shareId)
           .eq("is_shared", true)
           .single();
@@ -53,7 +50,6 @@ const SharedProject = () => {
             title: data.title,
             prompt: data.prompt,
             files: parseFiles(data.files),
-            conversations: Array.isArray(data.conversations) ? (data.conversations as any[]) : [],
           });
         }
       } catch {
@@ -79,7 +75,7 @@ const SharedProject = () => {
         title: `${project.title} (fork)`,
         prompt: project.prompt,
         files: project.files.length > 0 ? (project.files as any) : null,
-        conversations: project.conversations.length > 0 ? (project.conversations as any) : null,
+        conversations: null,
       }).select("id").single();
 
       if (error) throw error;
@@ -124,24 +120,24 @@ const SharedProject = () => {
       </button>
       <div className="flex items-center justify-between mb-1">
         <h1 className="text-lg font-semibold text-foreground">{project.title}</h1>
-        {(isCollab || project.files.length > 0) && (
+        {user && project.files.length > 0 && (
           <button
             onClick={handleFork}
             disabled={forking}
-            className="flex items-center gap-1.5 rounded-lg bg-purple-500 px-3 py-2 text-xs font-medium text-white active:scale-95 transition-transform disabled:opacity-50"
+            className="flex items-center gap-1.5 rounded-lg bg-foreground px-3 py-2 text-xs font-medium text-background active:scale-95 transition-transform disabled:opacity-50"
           >
             {forking ? <Loader2 size={13} className="animate-spin" /> : <GitFork size={13} />}
-            Fork & Build
+            Fork
           </button>
         )}
       </div>
       {project.prompt && (
         <p className="text-xs text-muted-foreground mb-4">{project.prompt}</p>
       )}
-      {isCollab && (
-        <div className="rounded-lg border border-purple-500/20 bg-purple-500/5 p-3 mb-4">
+      {!user && (
+        <div className="rounded-lg border border-border bg-surface-1 p-3 mb-4">
           <p className="text-xs text-muted-foreground">
-            This is a collaboration link. Click <strong className="text-foreground">Fork & Build</strong> to create your own copy and start building on it.
+            <button onClick={() => navigate("/auth")} className="text-foreground underline">Sign in</button> to fork this project and build on it.
           </p>
         </div>
       )}
