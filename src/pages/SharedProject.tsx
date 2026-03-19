@@ -1,8 +1,10 @@
 import { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, ArrowLeft } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import { Loader2, ArrowLeft, GitFork } from "lucide-react";
 import ArtifactCard from "@/components/ArtifactCard";
+import { toast } from "@/hooks/use-toast";
 import type { Json } from "@/integrations/supabase/types";
 
 interface ProjectFile {
@@ -15,6 +17,7 @@ interface SharedProjectData {
   title: string;
   prompt: string | null;
   files: ProjectFile[];
+  conversations: { role: string; content: string }[];
 }
 
 function parseFiles(files: Json | null): ProjectFile[] {
@@ -25,9 +28,13 @@ function parseFiles(files: Json | null): ProjectFile[] {
 const SharedProject = () => {
   const { shareId } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const { user } = useAuth();
   const [project, setProject] = useState<SharedProjectData | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [forking, setForking] = useState(false);
+  const isCollab = searchParams.get("collab") === "true";
 
   useEffect(() => {
     if (!shareId) { setNotFound(true); setLoading(false); return; }
@@ -35,14 +42,19 @@ const SharedProject = () => {
       try {
         const { data, error } = await supabase
           .from("projects")
-          .select("title, prompt, files")
+          .select("title, prompt, files, conversations")
           .eq("share_id", shareId)
           .eq("is_shared", true)
           .single();
         if (error || !data) {
           setNotFound(true);
         } else {
-          setProject({ title: data.title, prompt: data.prompt, files: parseFiles(data.files) });
+          setProject({
+            title: data.title,
+            prompt: data.prompt,
+            files: parseFiles(data.files),
+            conversations: Array.isArray(data.conversations) ? (data.conversations as any[]) : [],
+          });
         }
       } catch {
         setNotFound(true);
@@ -51,6 +63,34 @@ const SharedProject = () => {
     };
     load();
   }, [shareId]);
+
+  const handleFork = async () => {
+    if (!user) {
+      toast({ title: "Sign in required", description: "Please sign in to fork this project" });
+      navigate("/auth");
+      return;
+    }
+    if (!project) return;
+
+    setForking(true);
+    try {
+      const { data, error } = await supabase.from("projects").insert({
+        user_id: user.id,
+        title: `${project.title} (fork)`,
+        prompt: project.prompt,
+        files: project.files.length > 0 ? (project.files as any) : null,
+        conversations: project.conversations.length > 0 ? (project.conversations as any) : null,
+      }).select("id").single();
+
+      if (error) throw error;
+      toast({ title: "Project forked!", description: "Opening in builder..." });
+      navigate(`/build?project=${data.id}`);
+    } catch {
+      toast({ title: "Error", description: "Failed to fork project", variant: "destructive" });
+    } finally {
+      setForking(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -82,9 +122,28 @@ const SharedProject = () => {
       >
         <ArrowLeft size={14} /> Back
       </button>
-      <h1 className="text-lg font-semibold text-foreground mb-1">{project.title}</h1>
+      <div className="flex items-center justify-between mb-1">
+        <h1 className="text-lg font-semibold text-foreground">{project.title}</h1>
+        {(isCollab || project.files.length > 0) && (
+          <button
+            onClick={handleFork}
+            disabled={forking}
+            className="flex items-center gap-1.5 rounded-lg bg-purple-500 px-3 py-2 text-xs font-medium text-white active:scale-95 transition-transform disabled:opacity-50"
+          >
+            {forking ? <Loader2 size={13} className="animate-spin" /> : <GitFork size={13} />}
+            Fork & Build
+          </button>
+        )}
+      </div>
       {project.prompt && (
         <p className="text-xs text-muted-foreground mb-4">{project.prompt}</p>
+      )}
+      {isCollab && (
+        <div className="rounded-lg border border-purple-500/20 bg-purple-500/5 p-3 mb-4">
+          <p className="text-xs text-muted-foreground">
+            This is a collaboration link. Click <strong className="text-foreground">Fork & Build</strong> to create your own copy and start building on it.
+          </p>
+        </div>
       )}
       {project.files.length > 0 && (
         <ArtifactCard
