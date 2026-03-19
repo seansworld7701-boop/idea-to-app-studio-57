@@ -21,6 +21,7 @@ export const AI_MODELS: { id: AIModel; label: string; desc: string }[] = [
 export async function streamChat({
   messages,
   mode = "all",
+  model = "auto",
   onDelta,
   onDone,
   onError,
