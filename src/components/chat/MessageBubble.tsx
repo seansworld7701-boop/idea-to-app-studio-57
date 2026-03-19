@@ -11,6 +11,7 @@ interface Message {
   content: string;
   images?: string[];
   attachments?: { name: string; preview: string; type: string }[];
+  sender?: string;
 }
 
 interface MessageBubbleProps {
