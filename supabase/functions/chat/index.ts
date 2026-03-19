@@ -234,10 +234,22 @@ serve(async (req) => {
       ? `${BASE_SYSTEM}\n${modePrompt}\n${CODE_RULES}`
       : `${BASE_SYSTEM}\n${modePrompt}`;
 
-    // Use smarter models for complex tasks
-    const model = ["review", "debug"].includes(mode)
-      ? "google/gemini-2.5-flash"
-      : "google/gemini-3-flash-preview";
+    // Model selection
+    const MODEL_MAP: Record<string, string> = {
+      "gemini-flash": "google/gemini-3-flash-preview",
+      "gemini-pro": "google/gemini-2.5-pro",
+      "gpt-5": "openai/gpt-5",
+      "gpt-5-mini": "openai/gpt-5-mini",
+    };
+
+    let model: string;
+    if (requestedModel && requestedModel !== "auto" && MODEL_MAP[requestedModel]) {
+      model = MODEL_MAP[requestedModel];
+    } else {
+      model = ["review", "debug"].includes(mode)
+        ? "google/gemini-2.5-flash"
+        : "google/gemini-3-flash-preview";
+    }
 
     const formattedMessages = messages.slice(-30).map((msg: any) => {
       if (Array.isArray(msg.content)) {
