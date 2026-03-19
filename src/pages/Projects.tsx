@@ -1,10 +1,12 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { FolderOpen, Trash2, Loader2, ArrowRight, MessageSquare, Share2, Check, Globe, Link2, Copy } from "lucide-react";
+import { FolderOpen, Trash2, Loader2, ArrowRight, MessageSquare, Share2, Check, Globe, Link2, Copy, Download } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/hooks/use-toast";
+import JSZip from "jszip";
+import { saveAs } from "file-saver";
 import type { Json } from "@/integrations/supabase/types";
 
 interface ProjectFile {
