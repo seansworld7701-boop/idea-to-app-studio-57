@@ -32,7 +32,7 @@ export async function streamChat({
         "Content-Type": "application/json",
         Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
       },
-      body: JSON.stringify({ messages, mode }),
+      body: JSON.stringify({ messages, mode, persona }),
     });
   } catch {
     onError("Network error. Please check your connection and try again.");
