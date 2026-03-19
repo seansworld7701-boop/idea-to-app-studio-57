@@ -130,6 +130,17 @@ const MessageBubble = ({ message, isLoggedIn, onOpenPreview, onRetry, isPinned, 
             {copied ? <Check size={11} /> : <Copy size={11} />}
             {copied ? "Copied" : "Copy"}
           </button>
+          {onTogglePin && (
+            <button
+              onClick={onTogglePin}
+              className={`flex items-center gap-1 rounded-md px-2 py-1 text-[10px] transition-colors ${
+                isPinned ? "text-foreground" : "text-muted-foreground/60 hover:text-muted-foreground"
+              }`}
+            >
+              {isPinned ? <BookmarkCheck size={11} /> : <Bookmark size={11} />}
+              {isPinned ? "Pinned" : "Pin"}
+            </button>
+          )}
           {onRetry && (
             <button
               onClick={onRetry}
