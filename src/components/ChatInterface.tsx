@@ -487,42 +487,77 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
 
       {/* Input */}
       <div className="border-t border-border bg-background/80 backdrop-blur-xl px-4 py-3 pb-20">
-        {/* Mode switcher */}
-        <div className="relative mb-2" ref={modeMenuRef}>
-          <button
-            onClick={() => setModeMenuOpen((v) => !v)}
-            className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-surface-1 transition-all"
-          >
-            <ActiveIcon size={14} />
-            {activeMode.label}
-            <ChevronDown size={12} className={`transition-transform ${modeMenuOpen ? "rotate-180" : ""}`} />
-          </button>
-          {modeMenuOpen && (
-            <motion.div
-              initial={{ opacity: 0, y: 4 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="absolute bottom-full left-0 mb-1 w-52 rounded-xl border border-border bg-background shadow-lg overflow-hidden z-50"
+        {/* Mode & Model switcher */}
+        <div className="flex items-center gap-2 mb-2">
+          <div className="relative" ref={modeMenuRef}>
+            <button
+              onClick={() => { setModeMenuOpen((v) => !v); setModelMenuOpen(false); }}
+              className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-surface-1 transition-all"
             >
-              {MODES.map((m) => {
-                const Icon = m.icon;
-                return (
+              <ActiveIcon size={14} />
+              {activeMode.label}
+              <ChevronDown size={12} className={`transition-transform ${modeMenuOpen ? "rotate-180" : ""}`} />
+            </button>
+            {modeMenuOpen && (
+              <motion.div
+                initial={{ opacity: 0, y: 4 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="absolute bottom-full left-0 mb-1 w-52 rounded-xl border border-border bg-background shadow-lg overflow-hidden z-50"
+              >
+                {MODES.map((m) => {
+                  const Icon = m.icon;
+                  return (
+                    <button
+                      key={m.id}
+                      onClick={() => { setMode(m.id); setModeMenuOpen(false); }}
+                      className={`flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-xs transition-colors ${
+                        mode === m.id ? "bg-surface-1 text-foreground" : "text-muted-foreground hover:text-foreground hover:bg-surface-1/50"
+                      }`}
+                    >
+                      <Icon size={14} />
+                      <div>
+                        <div className="font-medium">{m.label}</div>
+                        <div className="text-[10px] text-muted-foreground">{m.desc}</div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </motion.div>
+            )}
+          </div>
+
+          <div className="relative" ref={modelMenuRef}>
+            <button
+              onClick={() => { setModelMenuOpen((v) => !v); setModeMenuOpen(false); }}
+              className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-surface-1 transition-all"
+            >
+              <Cpu size={14} />
+              {AI_MODELS.find((m) => m.id === selectedModel)?.label || "Auto"}
+              <ChevronDown size={12} className={`transition-transform ${modelMenuOpen ? "rotate-180" : ""}`} />
+            </button>
+            {modelMenuOpen && (
+              <motion.div
+                initial={{ opacity: 0, y: 4 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="absolute bottom-full left-0 mb-1 w-48 rounded-xl border border-border bg-background shadow-lg overflow-hidden z-50"
+              >
+                {AI_MODELS.map((m) => (
                   <button
                     key={m.id}
-                    onClick={() => { setMode(m.id); setModeMenuOpen(false); }}
+                    onClick={() => { setSelectedModel(m.id); setModelMenuOpen(false); }}
                     className={`flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-xs transition-colors ${
-                      mode === m.id ? "bg-surface-1 text-foreground" : "text-muted-foreground hover:text-foreground hover:bg-surface-1/50"
+                      selectedModel === m.id ? "bg-surface-1 text-foreground" : "text-muted-foreground hover:text-foreground hover:bg-surface-1/50"
                     }`}
                   >
-                    <Icon size={14} />
                     <div>
                       <div className="font-medium">{m.label}</div>
                       <div className="text-[10px] text-muted-foreground">{m.desc}</div>
                     </div>
                   </button>
-                );
-              })}
-            </motion.div>
-          )}
+                ))}
+              </motion.div>
+            )}
+          </div>
         </div>
 
         {/* Attachment previews */}
