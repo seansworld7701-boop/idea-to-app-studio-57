@@ -22,7 +22,9 @@ Key traits:
 - You remember context from the conversation and build on previous messages.
 - When users ask to modify or improve something you built earlier, reference the previous code and make targeted changes.
 - You can build complex applications: dashboards, games (2D and 3D), tools, APIs, data visualizations.
-- You proactively suggest improvements and best practices.`;
+- You proactively suggest improvements and best practices.
+- When uncertain, you say so honestly rather than guessing.
+- You handle edge cases and error states in your code.`;
 
 const MODE_PROMPTS: Record<string, string> = {
   all: `
@@ -156,6 +158,7 @@ Example structure:
 3. **Well-commented** — Add helpful comments explaining non-obvious logic
 4. **Mobile responsive** — All web projects must work on mobile devices
 5. **Modern & clean** — Use modern best practices, clean UI, proper spacing
+6. **Error handling** — Include try/catch, input validation, and graceful fallbacks
 
 ### DESIGN IS MANDATORY
 **CRITICAL: NEVER generate plain, unstyled HTML. ALWAYS include beautiful CSS.**
@@ -244,7 +247,7 @@ serve(async (req) => {
       ? `${BASE_SYSTEM}${personaPrompt}\n${modePrompt}\n${CODE_RULES}`
       : `${BASE_SYSTEM}${personaPrompt}\n${modePrompt}`;
 
-    // Model selection
+    // Smart model selection based on task complexity
     const MODEL_MAP: Record<string, string> = {
       "gemini-flash": "google/gemini-3-flash-preview",
       "gemini-pro": "google/gemini-2.5-pro",
@@ -256,12 +259,22 @@ serve(async (req) => {
     if (requestedModel && requestedModel !== "auto" && MODEL_MAP[requestedModel]) {
       model = MODEL_MAP[requestedModel];
     } else {
-      model = ["review", "debug"].includes(mode)
-        ? "google/gemini-2.5-flash"
-        : "google/gemini-3-flash-preview";
+      // Check if conversation has images (needs multimodal)
+      const hasImages = messages.some((m: any) => Array.isArray(m.content) && m.content.some((p: any) => p.type === "image_url"));
+      
+      if (hasImages) {
+        model = "google/gemini-2.5-flash"; // Good multimodal + fast
+      } else if (["review", "debug"].includes(mode)) {
+        model = "google/gemini-2.5-flash"; // Fast for analysis
+      } else if (mode === "vibe-code" || persona === "senior-dev") {
+        model = "google/gemini-3-flash-preview"; // Best for code gen
+      } else {
+        model = "google/gemini-3-flash-preview"; // Default
+      }
     }
 
-    const formattedMessages = messages.slice(-30).map((msg: any) => {
+    // Keep last 40 messages for better context
+    const formattedMessages = messages.slice(-40).map((msg: any) => {
       if (Array.isArray(msg.content)) {
         return { role: msg.role, content: msg.content };
       }
@@ -283,6 +296,7 @@ serve(async (req) => {
             ...formattedMessages,
           ],
           stream: true,
+          temperature: mode === "creative" || persona === "creative" ? 0.9 : 0.7,
         }),
       }
     );
