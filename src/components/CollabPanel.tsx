@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Users, X, Trash2, Loader2, UserPlus, Crown, Copy } from "lucide-react";
+import { Users, X, Trash2, Loader2, UserPlus, Crown, Copy, ShieldOff } from "lucide-react";
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -63,7 +63,6 @@ const CollabPanel = ({ projectId, projectTitle, onClose }: CollabPanelProps) => 
 
     setAdding(true);
     try {
-      // Look up user by email in profiles
       const { data: profile } = await supabase
         .from("profiles")
         .select("user_id")
@@ -116,7 +115,6 @@ const CollabPanel = ({ projectId, projectTitle, onClose }: CollabPanelProps) => 
 
   const handleStopCollab = async () => {
     try {
-      // Remove all collaborators
       await supabase
         .from("project_collaborators")
         .delete()
@@ -130,7 +128,7 @@ const CollabPanel = ({ projectId, projectTitle, onClose }: CollabPanelProps) => 
   };
 
   const copyInviteInfo = () => {
-    const text = `Join my project "${projectTitle}" on Dust AI! Sign up and ask me to add your email as a collaborator.`;
+    const text = `Join my project "${projectTitle}" on Dust AI! Sign up and share your email so I can add you as a collaborator.`;
     navigator.clipboard.writeText(text);
     toast({ title: "Invite text copied!" });
   };
@@ -142,13 +140,13 @@ const CollabPanel = ({ projectId, projectTitle, onClose }: CollabPanelProps) => 
       exit={{ opacity: 0, height: 0 }}
       className="overflow-hidden"
     >
-      <div className="rounded-lg border border-purple-500/20 bg-purple-500/5 p-3 space-y-3">
+      <div className="rounded-lg border border-border bg-surface-1 p-3 space-y-3">
         <div className="flex items-center justify-between">
           <span className="text-xs font-medium text-foreground flex items-center gap-1.5">
-            <Users size={12} className="text-purple-400" />
-            Collaborate
+            <Users size={12} className="text-muted-foreground" />
+            Collaboration
             <span className="text-[9px] text-muted-foreground ml-1">
-              ({collaborators.length}/{MAX_COLLABORATORS})
+              ({collaborators.length + 1}/{MAX_COLLABORATORS + 1})
             </span>
           </span>
           <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors">
@@ -157,8 +155,8 @@ const CollabPanel = ({ projectId, projectTitle, onClose }: CollabPanelProps) => 
         </div>
 
         {/* Owner */}
-        <div className="flex items-center gap-2 rounded-lg bg-surface-1 border border-border p-2">
-          <Crown size={12} className="text-amber-400 shrink-0" />
+        <div className="flex items-center gap-2 rounded-lg bg-background border border-border p-2">
+          <Crown size={12} className="text-foreground shrink-0" />
           <span className="text-[11px] text-foreground truncate flex-1">{user?.email}</span>
           <span className="text-[9px] text-muted-foreground">Owner</span>
         </div>
@@ -170,13 +168,18 @@ const CollabPanel = ({ projectId, projectTitle, onClose }: CollabPanelProps) => 
           </div>
         ) : (
           collaborators.map((c) => (
-            <div key={c.id} className="flex items-center gap-2 rounded-lg bg-surface-1 border border-border p-2">
-              <Users size={12} className="text-purple-400 shrink-0" />
-              <span className="text-[11px] text-foreground truncate flex-1">{c.email}</span>
+            <div key={c.id} className="flex items-center gap-2 rounded-lg bg-background border border-border p-2">
+              <Users size={12} className="text-muted-foreground shrink-0" />
+              <div className="flex-1 min-w-0">
+                <span className="text-[11px] text-foreground truncate block">{c.email}</span>
+                <span className="text-[9px] text-muted-foreground">
+                  Joined {new Date(c.joined_at).toLocaleDateString()}
+                </span>
+              </div>
               <button
                 onClick={() => handleRemove(c.id, c.email)}
                 disabled={removing === c.id}
-                className="text-muted-foreground hover:text-red-400 transition-colors shrink-0"
+                className="text-muted-foreground hover:text-destructive transition-colors shrink-0"
               >
                 {removing === c.id ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
               </button>
@@ -193,12 +196,12 @@ const CollabPanel = ({ projectId, projectTitle, onClose }: CollabPanelProps) => 
               onChange={(e) => setEmailInput(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleAdd()}
               placeholder="user@email.com"
-              className="flex-1 rounded-lg border border-border bg-surface-1 px-2.5 py-1.5 text-xs text-foreground placeholder:text-muted-foreground outline-none focus:ring-1 focus:ring-purple-500/30"
+              className="flex-1 rounded-lg border border-border bg-background px-2.5 py-1.5 text-xs text-foreground placeholder:text-muted-foreground outline-none focus:ring-1 focus:ring-ring"
             />
             <button
               onClick={handleAdd}
               disabled={adding}
-              className="flex items-center gap-1 rounded-lg bg-purple-500 px-2.5 py-1.5 text-[11px] font-medium text-white active:scale-95 transition-transform disabled:opacity-50 shrink-0"
+              className="flex items-center gap-1 rounded-lg bg-foreground px-2.5 py-1.5 text-[11px] font-medium text-background active:scale-95 transition-transform disabled:opacity-50 shrink-0"
             >
               {adding ? <Loader2 size={11} className="animate-spin" /> : <UserPlus size={11} />}
               Add
@@ -206,8 +209,8 @@ const CollabPanel = ({ projectId, projectTitle, onClose }: CollabPanelProps) => 
           </div>
         )}
 
-        <p className="text-[10px] text-muted-foreground">
-          Collaborators can chat and build on this project together. Max {MAX_COLLABORATORS} users.
+        <p className="text-[10px] text-muted-foreground leading-relaxed">
+          Collaborators share the same chat. Messages sync in real-time. Max {MAX_COLLABORATORS} collaborators + owner.
         </p>
 
         <div className="flex gap-2">
@@ -216,15 +219,15 @@ const CollabPanel = ({ projectId, projectTitle, onClose }: CollabPanelProps) => 
             className="flex items-center gap-1.5 flex-1 justify-center rounded-lg border border-border py-1.5 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
           >
             <Copy size={11} />
-            Copy invite text
+            Copy invite
           </button>
           {collaborators.length > 0 && (
             <button
               onClick={handleStopCollab}
-              className="flex items-center gap-1.5 flex-1 justify-center rounded-lg border border-red-500/20 py-1.5 text-[11px] text-red-400 hover:bg-red-500/10 transition-colors"
+              className="flex items-center gap-1.5 flex-1 justify-center rounded-lg border border-border py-1.5 text-[11px] text-destructive-foreground hover:bg-destructive/10 transition-colors"
             >
-              <X size={11} />
-              Stop collab
+              <ShieldOff size={11} />
+              End collab
             </button>
           )}
         </div>
