@@ -35,6 +35,38 @@ export type Database = {
         }
         Relationships: []
       }
+      project_collaborators: {
+        Row: {
+          email: string
+          id: string
+          joined_at: string
+          project_id: string
+          user_id: string
+        }
+        Insert: {
+          email: string
+          id?: string
+          joined_at?: string
+          project_id: string
+          user_id: string
+        }
+        Update: {
+          email?: string
+          id?: string
+          joined_at?: string
+          project_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_collaborators_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       projects: {
         Row: {
           conversations: Json | null
@@ -85,7 +117,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      is_project_owner: {
+        Args: { _project_id: string; _user_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
       [_ in never]: never

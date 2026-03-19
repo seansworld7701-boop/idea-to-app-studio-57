@@ -11,6 +11,7 @@ interface Message {
   content: string;
   images?: string[];
   attachments?: { name: string; preview: string; type: string }[];
+  sender?: string;
 }
 
 interface MessageBubbleProps {
@@ -40,6 +41,10 @@ const MessageBubble = ({ message, isLoggedIn, onOpenPreview, onRetry }: MessageB
   if (message.role === "user") {
     return (
       <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col items-end gap-2">
+        {/* Sender label for collab */}
+        {message.sender && (
+          <span className="text-[10px] text-muted-foreground/60 mr-1">{message.sender.split("@")[0]}</span>
+        )}
         {/* User attached images */}
         {message.images && message.images.length > 0 && (
           <div className="flex gap-1.5 flex-wrap justify-end max-w-[85%]">
