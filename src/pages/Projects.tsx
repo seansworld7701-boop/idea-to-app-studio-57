@@ -184,6 +184,21 @@ const ProjectsPage = () => {
     toast({ title: "Link copied!" });
   };
 
+  const handleExport = async (p: Project) => {
+    if (p.files.length === 0) {
+      toast({ title: "No files", description: "This project has no files to export", variant: "destructive" });
+      return;
+    }
+    const zip = new JSZip();
+    for (const file of p.files) {
+      zip.file(file.name, file.content);
+    }
+    const blob = await zip.generateAsync({ type: "blob" });
+    const safeName = p.title.replace(/[^a-z0-9]+/gi, "-").toLowerCase();
+    saveAs(blob, `${safeName}.zip`);
+    toast({ title: "Downloaded!", description: `${p.files.length} file(s) exported` });
+  };
+
   // Route guard handles unauthenticated state
   if (!user) return null;
 
