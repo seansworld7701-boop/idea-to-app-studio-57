@@ -20,6 +20,7 @@ import ResetPassword from "@/pages/ResetPassword";
 import AuthCallback from "@/pages/AuthCallback";
 import SharedProject from "@/pages/SharedProject";
 import HostedApp from "@/pages/HostedApp";
+import CloudPage from "@/pages/Cloud";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
