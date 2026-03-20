@@ -1,1 +1,4 @@
 project_id = "dskerfksolzzqwxzgrdw"
+
+[functions.cloud-chat]
+verify_jwt = false
