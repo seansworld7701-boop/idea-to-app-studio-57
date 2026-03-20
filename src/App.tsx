@@ -45,6 +45,7 @@ const App = () => {
                     <Route path="/build" element={<RouteGuard><BuildPage /></RouteGuard>} />
                     <Route path="/projects" element={<RouteGuard><ProjectsPage /></RouteGuard>} />
                     <Route path="/templates" element={<TemplatesPage />} />
+                    <Route path="/cloud" element={<RouteGuard><CloudPage /></RouteGuard>} />
                     <Route path="/account" element={<RouteGuard><AccountPage /></RouteGuard>} />
                     <Route path="/auth" element={<RouteGuard requireAuth={false} redirectTo="/build"><AuthPage /></RouteGuard>} />
                     <Route path="/auth/callback" element={<AuthCallback />} />
