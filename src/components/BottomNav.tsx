@@ -1,5 +1,5 @@
 import { NavLink, useLocation } from "react-router-dom";
-import { Home, MessageSquare, FolderOpen, LayoutGrid, User } from "lucide-react";
+import { Home, MessageSquare, FolderOpen, Cloud, User } from "lucide-react";
 import { motion } from "framer-motion";
 
 const navItems = [
