@@ -8,6 +8,8 @@ const corsHeaders = {
 
 const BASE_SYSTEM = `You are Dust AI — a world-class software engineer, creative coder, and friendly AI assistant built by WixLab.
 
+You help developers build stunning applications, solve complex problems, and learn new technologies. You can generate complete, production-ready code for any platform or language.
+
 Key traits:
 - You write COMPLETE, production-ready code. Never use placeholders or TODOs.
 - You're concise but thorough. Brief explanations, detailed code.
@@ -128,100 +130,27 @@ Write a brief explanation BEFORE the file blocks.
 - External CDN libraries via <script src="..."> tags in the <head>
 - This ensures the preview works perfectly every time
 
-Example structure:
-===FILE: index.html===
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Project Name</title>
-  <!-- CDN libraries here if needed -->
-  <style>
-    /* ALL CSS HERE */
-  </style>
-</head>
-<body>
-  <!-- HTML content -->
-  <script>
-    // ALL JavaScript HERE
-  </script>
-</body>
-</html>
-===END_FILE===
-
-**DO NOT split into separate .css and .js files.** Keep everything in ONE index.html file for web projects.
-
 ### Quality Standards
 1. **COMPLETE CODE ONLY** — Never use "// add your code here" or "// TODO". Every function must be fully implemented with real logic.
-2. **WORKING CODE** — The code must actually run. Test mentally that every feature works end-to-end.
+2. **WORKING CODE** — The code must actually run.
 3. **Well-commented** — Add helpful comments explaining non-obvious logic
 4. **Mobile responsive** — All web projects must work on mobile devices
 5. **Modern & clean** — Use modern best practices, clean UI, proper spacing
 6. **Error handling** — Include try/catch, input validation, and graceful fallbacks
 
 ### DESIGN IS MANDATORY
-**CRITICAL: NEVER generate plain, unstyled HTML. ALWAYS include beautiful CSS.**
-
-Every web project MUST include:
-- A modern, polished design appropriate to the project's theme and purpose
-- Choose a color scheme that fits the content (e.g. bright & playful for kids' games, warm for food apps, professional for dashboards, dark for tech tools — NOT always dark/cyber)
-- Smooth transitions and hover effects
-- Proper typography using system-ui or Google Fonts via @import
-- Responsive layout using CSS Grid or Flexbox
-- Subtle animations (CSS transitions, keyframes)
-- Professional spacing and padding (use rem units)
-- Design variety: use different aesthetics based on context — minimalist, colorful, retro, elegant, cartoon, material design, etc.
-
-### 3D Games & Visualizations
-When building 3D games or visualizations:
-- Use Three.js via CDN in the <head>: <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-- Put ALL code in a single index.html file with inline <script>
-- Implement complete game mechanics with physics, collisions, scoring
-- Add proper lighting (ambient + directional + point lights)
-- Use materials with colors and effects (MeshPhongMaterial, MeshStandardMaterial)
-- Include shadows and fog when appropriate
-- Handle keyboard (WASD/arrows), mouse, and touch controls
-- Add HUD/UI overlay for score, health, instructions using HTML/CSS overlays
-- Implement game states: menu, playing, paused, game over
-- Make it responsive and support mobile with touch controls
-- Use requestAnimationFrame for smooth 60fps rendering
-
-### 2D Games
-When building 2D games:
-- Use HTML5 Canvas for rendering
-- Put ALL code in a single index.html file
-- Implement the COMPLETE game loop with all mechanics
-- Handle ALL user input (keyboard + touch for mobile)
-- Implement scoring, levels/difficulty, game over, restart
-- Add visual polish (colors, animations, particles, UI feedback)
-- Make it actually FUN and playable
-- Support both desktop and mobile controls
-
-### Web Apps
-When building web apps:
-- Put ALL code in a single index.html file
-- Implement ALL requested features fully
-- Add proper UI with intuitive layout and beautiful CSS
-- Handle all user interactions and edge cases
-- Include error handling and loading states
-- Make it responsive and accessible
-- Use modern CSS with custom properties, grid, flexbox
-- Add micro-interactions and smooth transitions
-
-### Non-Web Code
-**Single-file code** (Python, Java, C, C++, Rust, Go, SQL, etc.): use ===FILE: main.ext===
+Every web project MUST include beautiful, modern CSS with smooth transitions, proper typography, and responsive layout.
 
 ## SAFETY
-Refuse requests for malware, hacking tools, phishing, password stealers, or any illegal/harmful code. Politely decline and suggest a legitimate alternative.`;
+Refuse requests for malware, hacking tools, phishing, password stealers, or any illegal/harmful code.`;
 
 const PERSONA_PROMPTS: Record<string, string> = {
   default: "",
-  "senior-dev": `\n\n## PERSONA: Senior Software Engineer\nYou are a senior engineer with 15+ years of experience. You prioritize:\n- Clean architecture and SOLID principles\n- Performance optimization and scalability\n- Security best practices\n- Comprehensive error handling\n- Production-ready, maintainable code\nSpeak with authority but be approachable. Explain trade-offs.`,
-  designer: `\n\n## PERSONA: UI/UX Designer\nYou are a world-class designer who codes. You prioritize:\n- Beautiful, pixel-perfect interfaces\n- Smooth animations and micro-interactions\n- Color theory and typography\n- User experience and accessibility\n- Modern design trends (glassmorphism, neumorphism, etc.)\nAlways create visually stunning output. Explain design decisions.`,
-  tutor: `\n\n## PERSONA: Patient Coding Tutor\nYou are a patient, encouraging coding tutor. You:\n- Explain concepts step by step with analogies\n- Use simple language, avoid jargon unless defining it\n- Add detailed comments in code explaining every part\n- Celebrate progress and encourage experimentation\n- Provide "why" not just "how"\n- Suggest exercises to practice concepts`,
-  startup: `\n\n## PERSONA: Startup CTO\nYou are a startup CTO who ships fast. You prioritize:\n- MVP-first approach — build the minimum viable version fast\n- Pragmatic decisions over perfect architecture\n- Speed of iteration and user feedback\n- Using existing libraries and tools over building from scratch\n- Clear, actionable recommendations\nBe direct, concise, and results-oriented.`,
-  creative: `\n\n## PERSONA: Creative Coder / Artist\nYou are a creative coder and digital artist. You:\n- Create visually experimental, artistic code\n- Use generative art, particle systems, procedural graphics\n- Push boundaries with unexpected layouts and interactions\n- Draw inspiration from art, nature, music, and culture\n- Prioritize wow-factor and emotional impact\n- Think outside conventional web design patterns`,
+  "senior-dev": `\n\n## PERSONA: Senior Software Engineer\nYou are a senior engineer with 15+ years of experience. You prioritize clean architecture, performance, security, and production-ready code.`,
+  designer: `\n\n## PERSONA: UI/UX Designer\nYou are a world-class designer who codes. You prioritize beautiful interfaces, animations, color theory, and UX.`,
+  tutor: `\n\n## PERSONA: Patient Coding Tutor\nYou explain step by step with analogies, add detailed comments, and encourage experimentation.`,
+  startup: `\n\n## PERSONA: Startup CTO\nYou ship fast with MVP-first approach, pragmatic decisions, and existing tools over custom builds.`,
+  creative: `\n\n## PERSONA: Creative Coder / Artist\nYou create visually experimental, artistic code with generative art, particle systems, and wow-factor.`,
 };
 
 serve(async (req) => {
@@ -229,9 +158,9 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
 
   try {
-    const { messages, mode = "all", model: requestedModel, persona = "default" } = await req.json();
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
+    const { messages, mode = "all", persona = "default" } = await req.json();
+    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+    if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY is not configured");
 
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
       return new Response(
@@ -243,86 +172,103 @@ serve(async (req) => {
     const modePrompt = MODE_PROMPTS[mode] || MODE_PROMPTS.all;
     const personaPrompt = PERSONA_PROMPTS[persona] || "";
     const needsCodeRules = !["chat", "explain", "review", "debug"].includes(mode);
-    const systemPrompt = needsCodeRules
+    const systemInstruction = needsCodeRules
       ? `${BASE_SYSTEM}${personaPrompt}\n${modePrompt}\n${CODE_RULES}`
       : `${BASE_SYSTEM}${personaPrompt}\n${modePrompt}`;
 
-    // Smart model selection based on task complexity
-    const MODEL_MAP: Record<string, string> = {
-      "gemini-flash": "google/gemini-3-flash-preview",
-      "gemini-pro": "google/gemini-2.5-pro",
-      "gpt-5": "openai/gpt-5",
-      "gpt-5-mini": "openai/gpt-5-mini",
-    };
-
-    let model: string;
-    if (requestedModel && requestedModel !== "auto" && MODEL_MAP[requestedModel]) {
-      model = MODEL_MAP[requestedModel];
-    } else {
-      // Check if conversation has images (needs multimodal)
-      const hasImages = messages.some((m: any) => Array.isArray(m.content) && m.content.some((p: any) => p.type === "image_url"));
-      
-      if (hasImages) {
-        model = "google/gemini-2.5-flash"; // Good multimodal + fast
-      } else if (["review", "debug"].includes(mode)) {
-        model = "google/gemini-2.5-flash"; // Fast for analysis
-      } else if (mode === "vibe-code" || persona === "senior-dev") {
-        model = "google/gemini-3-flash-preview"; // Best for code gen
-      } else {
-        model = "google/gemini-3-flash-preview"; // Default
-      }
-    }
-
-    // Keep last 40 messages for better context
-    const formattedMessages = messages.slice(-40).map((msg: any) => {
-      if (Array.isArray(msg.content)) {
-        return { role: msg.role, content: msg.content };
-      }
-      return { role: msg.role, content: msg.content };
-    });
+    // Convert messages to Gemini format, keeping last 40
+    const recentMessages = messages.slice(-40);
+    const contents = recentMessages.map((msg: any) => ({
+      role: msg.role === "assistant" ? "model" : "user",
+      parts: Array.isArray(msg.content)
+        ? msg.content.map((p: any) =>
+            p.type === "image_url"
+              ? { inline_data: { mime_type: "image/jpeg", data: p.image_url.url.replace(/^data:[^;]+;base64,/, "") } }
+              : { text: p.text }
+          )
+        : [{ text: msg.content }],
+    }));
 
     const response = await fetch(
-      "https://ai.gateway.lovable.dev/v1/chat/completions",
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:streamGenerateContent?alt=sse&key=${GEMINI_API_KEY}`,
       {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${LOVABLE_API_KEY}`,
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          model,
-          messages: [
-            { role: "system", content: systemPrompt },
-            ...formattedMessages,
-          ],
-          stream: true,
-          temperature: mode === "creative" || persona === "creative" ? 0.9 : 0.7,
+          system_instruction: { parts: [{ text: systemInstruction }] },
+          contents,
+          generationConfig: {
+            temperature: mode === "creative" || persona === "creative" ? 0.9 : 0.7,
+            maxOutputTokens: 8192,
+          },
         }),
       }
     );
 
     if (!response.ok) {
+      const t = await response.text();
+      console.error("Gemini API error:", response.status, t);
       if (response.status === 429) {
         return new Response(
-          JSON.stringify({ error: "Too many requests. Please wait a moment and try again." }),
+          JSON.stringify({ error: "Rate limited. Please wait a moment and try again." }),
           { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
-      if (response.status === 402) {
-        return new Response(
-          JSON.stringify({ error: "Usage limit reached. Please try again later." }),
-          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      const t = await response.text();
-      console.error("AI gateway error:", response.status, t);
       return new Response(
-        JSON.stringify({ error: "AI service temporarily unavailable. Please try again." }),
+        JSON.stringify({ error: "AI service error. Please try again." }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    return new Response(response.body, {
+    // Transform Gemini SSE to OpenAI-compatible SSE format
+    const { readable, writable } = new TransformStream();
+    const writer = writable.getWriter();
+    const encoder = new TextEncoder();
+
+    (async () => {
+      const reader = response.body!.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+
+          let newlineIdx;
+          while ((newlineIdx = buffer.indexOf("\n")) !== -1) {
+            let line = buffer.slice(0, newlineIdx);
+            buffer = buffer.slice(newlineIdx + 1);
+            if (line.endsWith("\r")) line = line.slice(0, -1);
+
+            if (!line.startsWith("data: ") || line.trim() === "") continue;
+            const jsonStr = line.slice(6).trim();
+            if (!jsonStr || jsonStr === "[DONE]") continue;
+
+            try {
+              const parsed = JSON.parse(jsonStr);
+              const text = parsed.candidates?.[0]?.content?.parts?.[0]?.text;
+              if (text) {
+                const chunk = JSON.stringify({
+                  choices: [{ delta: { content: text } }],
+                });
+                await writer.write(encoder.encode(`data: ${chunk}\n\n`));
+              }
+            } catch {
+              // partial JSON, skip
+            }
+          }
+        }
+        await writer.write(encoder.encode("data: [DONE]\n\n"));
+      } catch (e) {
+        console.error("Stream error:", e);
+      } finally {
+        writer.close();
+      }
+    })();
+
+    return new Response(readable, {
       headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
     });
   } catch (e) {
