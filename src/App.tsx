@@ -8,7 +8,7 @@ import ErrorBoundary from "@/components/ErrorBoundary";
 import MaintenanceMode from "@/components/MaintenanceMode";
 import RouteGuard from "@/components/RouteGuard";
 
-const MAINTENANCE_MODE = true;
+const MAINTENANCE_MODE = false;
 import BottomNav from "@/components/BottomNav";
 import HomePage from "@/pages/Home";
 import BuildPage from "@/pages/Build";
