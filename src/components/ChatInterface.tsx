@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Send, Loader2, ChevronDown, Sparkles, Braces, MessageCircle, FileSearch, ScanEye, Wrench, Trash2, Paperclip, X, History, Mic, MicOff, Palette, GraduationCap, Rocket, Wand2, Code2, Bot, Zap } from "lucide-react";
 import { motion } from "framer-motion";
-import { streamChat, fileToBase64, readFileAsText, parseAIResponse, type Msg, type ChatMode, type ContentPart, type PersonaId } from "@/lib/ai-stream";
+import { streamChat, generateImage, fileToBase64, readFileAsText, parseAIResponse, type Msg, type ChatMode, type ContentPart, type PersonaId } from "@/lib/ai-stream";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
