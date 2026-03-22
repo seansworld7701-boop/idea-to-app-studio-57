@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Send, Loader2, ChevronDown, Sparkles, Braces, MessageCircle, FileSearch, ScanEye, Wrench, Trash2, Paperclip, X, History, Mic, MicOff, Palette, GraduationCap, Rocket, Wand2, Code2, Bot, Zap } from "lucide-react";
 import { motion } from "framer-motion";
-import { streamChat, fileToBase64, readFileAsText, parseAIResponse, type Msg, type ChatMode, type ContentPart, type PersonaId } from "@/lib/ai-stream";
+import { streamChat, generateImage, fileToBase64, readFileAsText, parseAIResponse, type Msg, type ChatMode, type ContentPart, type PersonaId } from "@/lib/ai-stream";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -63,7 +63,7 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
   const [personaMenuOpen, setPersonaMenuOpen] = useState(false);
   const [currentProjectId, setCurrentProjectId] = useState<string | null>(projectId || null);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
-  const [isProcessingFiles, setIsProcessingFiles] = useState(false);
+  const [isGeneratingImage, setIsGeneratingImage] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [chatHistory, setChatHistory] = useState<{ id: string; title: string; updated_at: string }[]>([]);
   const [isRecording, setIsRecording] = useState(false);
@@ -255,6 +255,42 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
     setAttachments([]);
     setIsLoading(true);
     setShowDiff(false);
+
+    // Detect image generation requests
+    const detectImageGenRequest = (t: string): boolean => {
+      const lower = t.toLowerCase();
+      const patterns = [
+        /generate\s+(an?\s+)?image/, /create\s+(an?\s+)?image/, /draw\s+(me\s+)?(an?\s+)?/,
+        /make\s+(me\s+)?(an?\s+)?image/, /generate\s+(an?\s+)?picture/, /create\s+(an?\s+)?picture/,
+        /make\s+(an?\s+)?picture/, /image\s+of\b/, /picture\s+of\b/, /illustration\s+of\b/,
+        /generate\s+(an?\s+)?illustration/,
+      ];
+      return patterns.some((p) => p.test(lower));
+    };
+
+    if (detectImageGenRequest(msgText) && currentAttachments.length === 0) {
+      setIsGeneratingImage(true);
+      try {
+        const result = await generateImage(msgText);
+        const imageUrls = result.images?.map((img) => img.image_url.url) || [];
+        const assistantMsg: Message = {
+          id: crypto.randomUUID(),
+          role: "assistant",
+          content: result.text || "Here's the generated image:",
+          images: imageUrls,
+        };
+        const final = [...newMessages, assistantMsg];
+        setMessages(final);
+        saveProject(final, msgText, result.text || "");
+      } catch (e) {
+        const errMsg = e instanceof Error ? e.message : "Image generation failed";
+        toast({ title: "Error", description: errMsg, variant: "destructive" });
+      } finally {
+        setIsLoading(false);
+        setIsGeneratingImage(false);
+      }
+      return;
+    }
 
     const buildMsgContent = async (): Promise<Msg[]> => {
       const history: Msg[] = [];
@@ -568,7 +604,7 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
             )}
 
             {isLoading && messages[messages.length - 1]?.role !== "assistant" && (
-              <LoadingIndicator text={isProcessingFiles ? "Reading files..." : undefined} />
+              <LoadingIndicator text={isGeneratingImage ? "Generating image..." : undefined} />
             )}
             <div ref={messagesEndRef} />
           </div>
