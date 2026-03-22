@@ -12,8 +12,6 @@ serve(async (req) => {
 
   try {
     const { prompt } = await req.json();
-    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
-    if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY is not configured");
 
     if (!prompt || typeof prompt !== "string") {
       return new Response(
@@ -22,91 +20,60 @@ serve(async (req) => {
       );
     }
 
-    // Try multiple model names for image generation
-    const modelNames = [
-      "gemini-2.0-flash-exp-image-generation",
-      "gemini-2.0-flash-exp",
-      "gemini-2.0-flash-preview-image-generation",
-      "gemini-2.5-flash-preview-image-generation",
-      "gemini-2.5-flash",
-    ];
+    // Try LOVABLE_API_KEY first (supports image generation models)
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (LOVABLE_API_KEY) {
+      const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "google/gemini-2.5-flash-image",
+          messages: [{ role: "user", content: `Generate an image: ${prompt}` }],
+          modalities: ["image", "text"],
+        }),
+      });
 
-    let lastError = "";
-    
-    for (const modelName of modelNames) {
-      try {
-        console.log(`Trying model: ${modelName}`);
-        const response = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${GEMINI_API_KEY}`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              contents: [
-                {
-                  parts: [{ text: `Generate an image: ${prompt}` }],
-                },
-              ],
-              generationConfig: {
-                responseModalities: ["TEXT", "IMAGE"],
-              },
-            }),
-          }
-        );
-
-        if (!response.ok) {
-          const t = await response.text();
-          console.error(`Model ${modelName} failed:`, response.status, t);
-          lastError = t;
-          if (response.status === 429) {
-            return new Response(
-              JSON.stringify({ error: "Too many requests. Please wait a moment and try again." }),
-              { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-            );
-          }
-          continue;
-        }
-
+      if (response.ok) {
         const data = await response.json();
-        const parts = data.candidates?.[0]?.content?.parts || [];
+        const message = data.choices?.[0]?.message;
+        const text = message?.content || "";
+        const images = (message?.images || []).map((img: any) => ({
+          type: "image_url",
+          image_url: { url: img.image_url?.url || img },
+        }));
 
-        let text = "";
-        const images: { type: string; image_url: { url: string } }[] = [];
-
-        for (const part of parts) {
-          if (part.text) {
-            text += part.text;
-          } else if (part.inlineData) {
-            const mimeType = part.inlineData.mimeType || "image/png";
-            const base64 = part.inlineData.data;
-            images.push({
-              type: "image_url",
-              image_url: { url: `data:${mimeType};base64,${base64}` },
-            });
-          }
+        if (images.length > 0) {
+          return new Response(
+            JSON.stringify({ text, images }),
+            { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
         }
-
-        if (images.length === 0) {
-          console.log(`Model ${modelName} returned no images, trying next...`);
-          lastError = "No image was generated";
-          continue;
+      } else {
+        const status = response.status;
+        if (status === 429) {
+          return new Response(
+            JSON.stringify({ error: "Too many requests. Please wait a moment and try again." }),
+            { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
         }
-
-        console.log(`Success with model: ${modelName}, generated ${images.length} image(s)`);
-        return new Response(
-          JSON.stringify({ text, images }),
-          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      } catch (e) {
-        console.error(`Model ${modelName} error:`, e);
-        lastError = e instanceof Error ? e.message : "Unknown error";
-        continue;
+        if (status === 402) {
+          return new Response(
+            JSON.stringify({ error: "Usage limit reached. Please try again later." }),
+            { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+        const t = await response.text();
+        console.error("Lovable AI gateway error:", status, t);
       }
     }
 
-    // All models failed — try Imagen API as fallback
-    console.log("Trying Imagen API as fallback...");
-    try {
+    // Fallback: try Gemini API directly with user's key
+    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+    if (GEMINI_API_KEY) {
+      // Try Imagen API
       const imagenResponse = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${GEMINI_API_KEY}`,
         {
@@ -114,9 +81,7 @@ serve(async (req) => {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             instances: [{ prompt }],
-            parameters: {
-              sampleCount: 1,
-            },
+            parameters: { sampleCount: 1 },
           }),
         }
       );
@@ -129,7 +94,6 @@ serve(async (req) => {
             type: "image_url",
             image_url: { url: `data:image/png;base64,${p.bytesBase64Encoded}` },
           }));
-          console.log("Success with Imagen API");
           return new Response(
             JSON.stringify({ text: "", images }),
             { headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -137,15 +101,13 @@ serve(async (req) => {
         }
       } else {
         const t = await imagenResponse.text();
-        console.error("Imagen API failed:", imagenResponse.status, t);
+        console.error("Imagen API error:", imagenResponse.status, t);
       }
-    } catch (e) {
-      console.error("Imagen fallback error:", e);
     }
 
     return new Response(
-      JSON.stringify({ error: "Image generation is not available with your current API key. Please check that your Gemini API key has image generation enabled." }),
-      { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      JSON.stringify({ error: "Image generation failed. Please try again." }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (e) {
     console.error("generate-image error:", e);
