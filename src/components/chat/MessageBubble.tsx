@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Copy, Check, RefreshCw, Download, Bookmark, BookmarkCheck } from "lucide-react";
+import { Copy, Check, RefreshCw, Download, Bookmark, BookmarkCheck, Paperclip } from "lucide-react";
 import { useState } from "react";
 import ReactMarkdown from "react-markdown";
 import ArtifactCard from "../ArtifactCard";
