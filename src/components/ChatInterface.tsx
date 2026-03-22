@@ -568,7 +568,7 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
             )}
 
             {isLoading && messages[messages.length - 1]?.role !== "assistant" && (
-              <LoadingIndicator text={isProcessingFiles ? "Reading files..." : undefined} />
+              <LoadingIndicator text={isGeneratingImage ? "Generating image..." : undefined} />
             )}
             <div ref={messagesEndRef} />
           </div>
