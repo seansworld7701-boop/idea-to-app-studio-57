@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Copy, Check, RefreshCw, Download, Bookmark, BookmarkCheck } from "lucide-react";
+import { Copy, Check, RefreshCw, Download, Bookmark, BookmarkCheck, Paperclip } from "lucide-react";
 import { useState } from "react";
 import ReactMarkdown from "react-markdown";
 import ArtifactCard from "../ArtifactCard";
@@ -65,7 +65,7 @@ const MessageBubble = ({ message, isLoggedIn, onOpenPreview, onRetry, isPinned, 
           <div className="flex gap-1.5 flex-wrap justify-end max-w-[85%]">
             {message.attachments.filter((a) => !a.type.startsWith("image/")).map((att, i) => (
               <div key={i} className="rounded-lg border border-border bg-surface-1 px-3 py-1.5 text-xs text-muted-foreground">
-                📎 {att.name}
+                <Paperclip size={12} className="inline mr-1" />{att.name}
               </div>
             ))}
           </div>

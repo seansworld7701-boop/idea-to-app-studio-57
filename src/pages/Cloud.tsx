@@ -140,7 +140,7 @@ const CloudPage = () => {
       {/* Usage hint */}
       <div className="px-5 pt-6">
         <div className="p-4 rounded-xl border border-border bg-secondary/20">
-          <p className="text-xs font-medium text-foreground mb-1">💡 Tip: AI auto-suggests Cloud</p>
+          <p className="text-xs font-medium text-foreground mb-1 flex items-center gap-1.5"><Zap size={12} /> Tip: AI auto-suggests Cloud</p>
           <p className="text-[11px] text-muted-foreground leading-relaxed">
             When you're building in the main chat, Dust AI will automatically suggest using Cloud services
             when your project needs authentication, data storage, or file uploads.

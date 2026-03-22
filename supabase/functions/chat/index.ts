@@ -128,11 +128,12 @@ const CODE_RULES = `
 When generating code, follow these rules strictly:
 
 ### Output Format
-Use EXACTLY this marker format for each file:
+Use EXACTLY this marker format for each file — this is critical for the preview system to work:
 ===FILE: filename.ext===
 (complete file content here)
 ===END_FILE===
 
+You MUST use ===FILE: and ===END_FILE=== markers. Without them, the user cannot preview the project.
 Write a brief explanation BEFORE the file blocks.
 
 ### CRITICAL: Web Projects Must Be Self-Contained
@@ -211,7 +212,7 @@ serve(async (req) => {
           contents,
           generationConfig: {
             temperature: mode === "creative" || persona === "creative" ? 0.9 : 0.7,
-            maxOutputTokens: 8192,
+            maxOutputTokens: 65536,
           },
         }),
       }

@@ -8,7 +8,7 @@ const SUGGESTION_PROMPTS = [
   "Make a todo list app",
   "Build a 3D maze game",
   "Create a quiz app",
-  "Generate an image of a sunset",
+  "Build a weather dashboard",
 ];
 
 interface EmptyStateProps {
