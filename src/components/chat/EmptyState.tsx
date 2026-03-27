@@ -1,14 +1,13 @@
 import { motion } from "framer-motion";
 import logo from "@/assets/logo.png";
-import { Sparkles } from "lucide-react";
 
 const SUGGESTION_PROMPTS = [
   "Create a portfolio website",
   "Build a snake game",
   "Make a todo list app",
   "Build a 3D maze game",
-  "Create a quiz app",
-  "Generate an image of a sunset",
+  "Create a weather dashboard",
+  "Build a calculator app",
 ];
 
 interface EmptyStateProps {
@@ -26,7 +25,7 @@ const EmptyState = ({ onSuggestionClick }: EmptyStateProps) => (
       <img src={logo} alt="Dust AI" className="w-14 h-14 brightness-200 contrast-200 drop-shadow-lg" />
       <h1 className="text-xl font-bold tracking-tight text-foreground">Build anything, in text.</h1>
       <p className="text-sm text-muted-foreground text-center max-w-[280px]">
-        Websites, 3D games, apps, AI images — type an idea or attach a file.
+        Websites, 3D games, apps, tools — type an idea or attach a file.
       </p>
     </motion.div>
     <div className="grid grid-cols-2 gap-2 w-full max-w-sm">
