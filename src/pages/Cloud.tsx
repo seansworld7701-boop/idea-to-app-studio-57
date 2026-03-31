@@ -1,10 +1,4 @@
-import { useState } from "react";
-import { Cloud, Shield, Database, HardDrive, Key, MessageSquare, ChevronRight, Zap } from "lucide-react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import CloudChat from "@/components/cloud/CloudChat";
-import CloudData from "@/components/cloud/CloudData";
-import CloudFiles from "@/components/cloud/CloudFiles";
-import CloudApiKeys from "@/components/cloud/CloudApiKeys";
+import { Cloud, Shield, Database, HardDrive, Key, Lock, Zap } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
 const services = [
@@ -14,7 +8,6 @@ const services = [
     title: "Authentication",
     description: "Email/password login, Google sign-in, user sessions",
     status: "active" as const,
-    tab: null,
   },
   {
     id: "database",
@@ -22,7 +15,6 @@ const services = [
     title: "Database",
     description: "Key-value data store with per-user isolation",
     status: "active" as const,
-    tab: "data",
   },
   {
     id: "storage",
@@ -30,7 +22,6 @@ const services = [
     title: "File Storage",
     description: "Upload, download, and manage files securely",
     status: "active" as const,
-    tab: "files",
   },
   {
     id: "api-keys",
@@ -38,46 +29,11 @@ const services = [
     title: "API Keys",
     description: "Generate and manage access keys for your apps",
     status: "active" as const,
-    tab: "keys",
-  },
-  {
-    id: "ai",
-    icon: Zap,
-    title: "AI Assistant",
-    description: "Chat with Dust Cloud AI powered by Gemini",
-    status: "active" as const,
-    tab: "chat",
   },
 ];
 
 const CloudPage = () => {
-  const [activeTab, setActiveTab] = useState<string | null>(null);
   const { user } = useAuth();
-
-  // If a tab is active, show that panel
-  if (activeTab) {
-    return (
-      <div className="flex flex-col min-h-full pb-24">
-        <div className="px-5 pt-6 pb-3">
-          <button
-            onClick={() => setActiveTab(null)}
-            className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
-          >
-            ← Back to Cloud
-          </button>
-          <h2 className="text-base font-semibold text-foreground mt-2">
-            {services.find((s) => s.tab === activeTab)?.title}
-          </h2>
-        </div>
-        <div className="flex-1 px-5">
-          {activeTab === "chat" && <CloudChat />}
-          {activeTab === "data" && <CloudData />}
-          {activeTab === "files" && <CloudFiles />}
-          {activeTab === "keys" && <CloudApiKeys />}
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="flex flex-col min-h-full pb-24">
@@ -107,15 +63,24 @@ const CloudPage = () => {
         </div>
       </div>
 
-      {/* Services grid */}
+      {/* Locked notice */}
+      <div className="px-5 py-3">
+        <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg border border-border bg-secondary/30">
+          <Lock size={14} className="text-muted-foreground shrink-0" />
+          <p className="text-xs text-muted-foreground">
+            Cloud services are managed automatically by the AI assistant. Ask the AI in Build to enable or configure services.
+          </p>
+        </div>
+      </div>
+
+      {/* Services grid (read-only) */}
       <div className="px-5 pt-2 space-y-2">
         <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider px-1">Services</p>
         <div className="space-y-2">
           {services.map((service) => (
-            <button
+            <div
               key={service.id}
-              onClick={() => service.tab && setActiveTab(service.tab)}
-              className="w-full flex items-center gap-3 p-3.5 rounded-xl bg-secondary/30 border border-border hover:bg-secondary/60 transition-colors text-left group"
+              className="w-full flex items-center gap-3 p-3.5 rounded-xl bg-secondary/30 border border-border text-left"
             >
               <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-secondary border border-border shrink-0">
                 <service.icon size={16} className="text-foreground" />
@@ -129,10 +94,7 @@ const CloudPage = () => {
                 </div>
                 <p className="text-xs text-muted-foreground mt-0.5 truncate">{service.description}</p>
               </div>
-              {service.tab && (
-                <ChevronRight size={16} className="text-muted-foreground group-hover:text-foreground transition-colors shrink-0" />
-              )}
-            </button>
+            </div>
           ))}
         </div>
       </div>
@@ -140,10 +102,10 @@ const CloudPage = () => {
       {/* Usage hint */}
       <div className="px-5 pt-6">
         <div className="p-4 rounded-xl border border-border bg-secondary/20">
-          <p className="text-xs font-medium text-foreground mb-1 flex items-center gap-1.5"><Zap size={12} /> Tip: AI auto-suggests Cloud</p>
+          <p className="text-xs font-medium text-foreground mb-1 flex items-center gap-1.5"><Zap size={12} /> How to use Cloud</p>
           <p className="text-[11px] text-muted-foreground leading-relaxed">
-            When you're building in the main chat, Dust AI will automatically suggest using Cloud services
-            when your project needs authentication, data storage, or file uploads.
+            Cloud services are configured through the AI assistant in Build. When your project needs
+            authentication, data storage, or file uploads, the AI will show an action card to enable it.
           </p>
         </div>
       </div>
