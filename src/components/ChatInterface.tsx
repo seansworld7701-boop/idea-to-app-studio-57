@@ -255,6 +255,19 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
 
     const buildMsgContent = async (): Promise<Msg[]> => {
       const history: Msg[] = [];
+
+      // Find the latest project files from conversation to inject as context
+      let latestFiles: { name: string; content: string }[] = [];
+      for (let i = newMessages.length - 1; i >= 0; i--) {
+        if (newMessages[i].role === "assistant") {
+          const { files } = parseAIResponse(newMessages[i].content);
+          if (files.length > 0) {
+            latestFiles = files;
+            break;
+          }
+        }
+      }
+
       for (const m of newMessages) {
         if (m.role === "user" && m.images && m.images.length > 0) {
           const parts: ContentPart[] = [{ type: "text", text: m.content || "What is this?" }];
@@ -264,6 +277,16 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
           history.push({ role: m.role, content: m.content });
         }
       }
+
+      // If there are project files and user is asking to modify, inject context
+      if (latestFiles.length > 0 && history.length > 0) {
+        const lastMsg = history[history.length - 1];
+        if (lastMsg.role === "user" && typeof lastMsg.content === "string") {
+          const contextPrefix = `[CURRENT PROJECT FILES for reference — apply changes to these]\n${latestFiles.map(f => `===FILE: ${f.name}===\n${f.content}\n===END_FILE===`).join("\n\n")}\n\n[USER REQUEST]\n`;
+          lastMsg.content = contextPrefix + lastMsg.content;
+        }
+      }
+
       return history;
     };
 
