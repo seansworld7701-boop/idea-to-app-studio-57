@@ -19,10 +19,17 @@ interface Message {
   attachments?: { name: string; preview: string; type: string }[];
 }
 
+interface ProjectFile {
+  name: string;
+  content: string;
+  language: string;
+}
+
 const BuildPage = () => {
   const [preview, setPreview] = useState<PreviewData | null>(null);
   const [searchParams] = useSearchParams();
   const [loadedMessages, setLoadedMessages] = useState<Message[] | undefined>(undefined);
+  const [loadedProjectFiles, setLoadedProjectFiles] = useState<ProjectFile[] | undefined>(undefined);
   const [loadedProjectId, setLoadedProjectId] = useState<string | undefined>(undefined);
   const [isLoadingChat, setIsLoadingChat] = useState(true);
   const { user } = useAuth();
@@ -45,9 +52,8 @@ const BuildPage = () => {
         if (targetProjectId) {
           const { data } = await supabase
             .from("projects")
-            .select("id, conversations")
+            .select("id, conversations, files")
             .eq("id", targetProjectId)
-            .eq("user_id", user.id)
             .single();
 
           if (data?.conversations && Array.isArray(data.conversations)) {
@@ -59,12 +65,13 @@ const BuildPage = () => {
               }))
             );
             setLoadedProjectId(data.id);
+            setLoadedProjectFiles(Array.isArray(data.files) ? (data.files as ProjectFile[]) : []);
           }
         } else if (!initialPrompt) {
           // Load the most recent project's conversation
           const { data } = await supabase
             .from("projects")
-            .select("id, conversations")
+            .select("id, conversations, files")
             .eq("user_id", user.id)
             .order("updated_at", { ascending: false })
             .limit(1)
@@ -79,6 +86,7 @@ const BuildPage = () => {
               }))
             );
             setLoadedProjectId(data.id);
+            setLoadedProjectFiles(Array.isArray(data.files) ? (data.files as ProjectFile[]) : []);
           }
         }
       } catch {
@@ -108,6 +116,7 @@ const BuildPage = () => {
           initialPrompt={initialPrompt}
           projectId={loadedProjectId || projectIdParam}
           initialMessages={loadedMessages}
+          initialProjectFiles={loadedProjectFiles}
         />
       </div>
     </>

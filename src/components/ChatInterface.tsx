@@ -12,6 +12,7 @@ import LoadingIndicator from "./chat/LoadingIndicator";
 import FollowUpSuggestions from "./chat/FollowUpSuggestions";
 import ChatToolbar from "./chat/ChatToolbar";
 import CodeDiffView from "./chat/CodeDiffView";
+import type { ActionType } from "./chat/ActionCard";
 
 const MODES: { id: ChatMode; label: string; icon: typeof Braces; desc: string }[] = [
   { id: "all", label: "All", icon: Sparkles, desc: "Code + conversation" },
@@ -51,9 +52,46 @@ interface ChatInterfaceProps {
   initialPrompt?: string;
   projectId?: string;
   initialMessages?: Message[];
+  initialProjectFiles?: { name: string; content: string; language: string }[];
 }
 
-const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessages }: ChatInterfaceProps) => {
+const ACTION_TYPES: ActionType[] = ["backend", "database", "storage", "api_key", "auth"];
+
+const getProjectPermissionsStorageKey = (projectId?: string | null) => `dust-project-permissions:${projectId ?? "draft"}`;
+
+const readApprovedActions = (projectId?: string | null): Record<ActionType, true> => {
+  if (typeof window === "undefined") return {};
+
+  try {
+    const raw = window.localStorage.getItem(getProjectPermissionsStorageKey(projectId));
+    if (!raw) return {};
+
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    return ACTION_TYPES.reduce((acc, type) => {
+      if (parsed[type] === true) acc[type] = true;
+      return acc;
+    }, {} as Record<ActionType, true>);
+  } catch {
+    return {};
+  }
+};
+
+const writeApprovedActions = (projectId: string | null | undefined, actions: Record<ActionType, true>) => {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(getProjectPermissionsStorageKey(projectId), JSON.stringify(actions));
+};
+
+const migrateApprovedActions = (fromProjectId: string | null | undefined, toProjectId: string) => {
+  if (typeof window === "undefined") return;
+
+  const next = readApprovedActions(fromProjectId);
+  if (Object.keys(next).length === 0) return;
+
+  writeApprovedActions(toProjectId, next);
+  window.localStorage.removeItem(getProjectPermissionsStorageKey(fromProjectId));
+};
+
+const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessages, initialProjectFiles }: ChatInterfaceProps) => {
   const [messages, setMessages] = useState<Message[]>(initialMessages || []);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -62,6 +100,7 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
   const [modeMenuOpen, setModeMenuOpen] = useState(false);
   const [personaMenuOpen, setPersonaMenuOpen] = useState(false);
   const [currentProjectId, setCurrentProjectId] = useState<string | null>(projectId || null);
+  const [currentProjectFiles, setCurrentProjectFiles] = useState<{ name: string; content: string; language: string }[]>(initialProjectFiles || []);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [showHistory, setShowHistory] = useState(false);
   const [chatHistory, setChatHistory] = useState<{ id: string; title: string; updated_at: string }[]>([]);
@@ -69,6 +108,7 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
   const [pinnedIds, setPinnedIds] = useState<Set<string>>(new Set());
   const [showDiff, setShowDiff] = useState(false);
   const [previousFiles, setPreviousFiles] = useState<{ name: string; content: string; language: string }[]>([]);
+  const [approvedActions, setApprovedActions] = useState<Record<ActionType, true>>(() => readApprovedActions(projectId || null));
   const recognitionRef = useRef<any>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messageRefs = useRef<Map<string, HTMLDivElement>>(new Map());
@@ -108,15 +148,43 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
     }
   }, [initialPrompt]);
 
+  useEffect(() => {
+    setApprovedActions(readApprovedActions(currentProjectId));
+  }, [currentProjectId]);
+
   const loadChatHistory = useCallback(async () => {
     if (!user) return;
-    const { data } = await supabase
-      .from("projects")
-      .select("id, title, updated_at")
-      .eq("user_id", user.id)
-      .order("updated_at", { ascending: false })
-      .limit(20);
-    if (data) setChatHistory(data);
+
+    const [{ data: ownProjects }, { data: collabs }] = await Promise.all([
+      supabase
+        .from("projects")
+        .select("id, title, updated_at")
+        .eq("user_id", user.id)
+        .order("updated_at", { ascending: false })
+        .limit(20),
+      supabase
+        .from("project_collaborators")
+        .select("project_id")
+        .eq("user_id", user.id),
+    ]);
+
+    let accessibleProjects = ownProjects || [];
+
+    if (collabs && collabs.length > 0) {
+      const ids = [...new Set(collabs.map((collab) => collab.project_id))];
+      const { data: collaboratorProjects } = await supabase
+        .from("projects")
+        .select("id, title, updated_at")
+        .in("id", ids);
+
+      accessibleProjects = [...accessibleProjects, ...(collaboratorProjects || [])];
+    }
+
+    const deduped = Array.from(new Map(accessibleProjects.map((project) => [project.id, project])).values())
+      .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
+      .slice(0, 20);
+
+    setChatHistory(deduped);
   }, [user]);
 
   useEffect(() => {
@@ -133,7 +201,11 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
         (payload) => {
           if (Date.now() - lastSaveRef.current < 2000) return;
           const newConversations = payload.new?.conversations;
+          const newFiles = payload.new?.files;
           if (!newConversations || !Array.isArray(newConversations)) return;
+          if (newFiles && Array.isArray(newFiles)) {
+            setCurrentProjectFiles(newFiles as { name: string; content: string; language: string }[]);
+          }
           setMessages((prev) => {
             if (prev.some(m => m.id === "streaming")) return prev;
             const incoming = (newConversations as any[]).map((m: any) => ({
@@ -153,11 +225,27 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
     return () => { supabase.removeChannel(channel); };
   }, [currentProjectId]);
 
+  const handleApproveAction = useCallback((type: ActionType) => {
+    setApprovedActions((prev) => {
+      if (prev[type]) return prev;
+
+      const next = { ...prev, [type]: true };
+      writeApprovedActions(currentProjectId, next);
+      return next;
+    });
+
+    toast({
+      title: "Capability enabled",
+      description: "The AI will keep using this for the current project without asking again.",
+    });
+  }, [currentProjectId]);
+
   const saveProject = useCallback(async (allMessages: Message[], prompt: string, assistantContent: string) => {
     if (!user) return;
     const { files } = parseAIResponse(assistantContent);
-    const title = files.length > 0
-      ? files[0]?.name.replace(/\.\w+$/, "") || "Untitled"
+    const nextFiles = files.length > 0 ? files : currentProjectFiles;
+    const title = nextFiles.length > 0
+      ? nextFiles[0]?.name.replace(/\.\w+$/, "") || "Untitled"
       : prompt.slice(0, 50) || "Chat";
     const conversations = allMessages.map((m) => ({
       role: m.role,
@@ -169,7 +257,7 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
       lastSaveRef.current = Date.now();
       if (currentProjectId) {
         await supabase.from("projects").update({
-          files: files.length > 0 ? (files as any) : undefined,
+          files: nextFiles.length > 0 ? (nextFiles as any) : undefined,
           conversations: conversations as any,
           updated_at: new Date().toISOString(),
         }).eq("id", currentProjectId);
@@ -178,15 +266,20 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
           user_id: user.id,
           title,
           prompt,
-          files: files.length > 0 ? (files as any) : null,
+          files: nextFiles.length > 0 ? (nextFiles as any) : null,
           conversations: conversations as any,
         }).select("id").single();
-        if (data) setCurrentProjectId(data.id);
+        if (data) {
+          migrateApprovedActions(null, data.id);
+          setCurrentProjectId(data.id);
+        }
       }
+
+      if (files.length > 0) setCurrentProjectFiles(files);
     } catch (e) {
       console.error("Failed to save project:", e);
     }
-  }, [user, currentProjectId]);
+  }, [user, currentProjectId, currentProjectFiles]);
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -257,13 +350,19 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
       const history: Msg[] = [];
 
       // Find the latest project files from conversation to inject as context
-      let latestFiles: { name: string; content: string }[] = [];
-      for (let i = newMessages.length - 1; i >= 0; i--) {
-        if (newMessages[i].role === "assistant") {
-          const { files } = parseAIResponse(newMessages[i].content);
-          if (files.length > 0) {
-            latestFiles = files;
-            break;
+      let latestFiles: { name: string; content: string }[] = currentProjectFiles.map((file) => ({
+        name: file.name,
+        content: file.content,
+      }));
+
+      if (latestFiles.length === 0) {
+        for (let i = newMessages.length - 1; i >= 0; i--) {
+          if (newMessages[i].role === "assistant") {
+            const { files } = parseAIResponse(newMessages[i].content);
+            if (files.length > 0) {
+              latestFiles = files;
+              break;
+            }
           }
         }
       }
@@ -282,8 +381,12 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
       if (latestFiles.length > 0 && history.length > 0) {
         const lastMsg = history[history.length - 1];
         if (lastMsg.role === "user" && typeof lastMsg.content === "string") {
+          const approvedCapabilities = Object.keys(approvedActions);
+          const capabilitiesPrefix = approvedCapabilities.length > 0
+            ? `[APPROVED PROJECT CAPABILITIES]\n${approvedCapabilities.join(", ")}\n\n`
+            : "";
           const contextPrefix = `[CURRENT PROJECT FILES for reference — apply changes to these]\n${latestFiles.map(f => `===FILE: ${f.name}===\n${f.content}\n===END_FILE===`).join("\n\n")}\n\n[USER REQUEST]\n`;
-          lastMsg.content = contextPrefix + lastMsg.content;
+          lastMsg.content = capabilitiesPrefix + contextPrefix + lastMsg.content;
         }
       }
 
@@ -298,6 +401,7 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
         messages: history,
         mode,
         persona,
+        approvedActions: Object.keys(approvedActions) as ActionType[],
         onDelta: (chunk) => {
           assistantSoFar += chunk;
           setMessages((prev) => {
@@ -343,10 +447,15 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
   const handleClearChat = () => {
     setMessages([]);
     setCurrentProjectId(null);
+    setCurrentProjectFiles([]);
     setAttachments([]);
     setPinnedIds(new Set());
     setPreviousFiles([]);
     setShowDiff(false);
+    setApprovedActions({});
+    if (typeof window !== "undefined") {
+      window.localStorage.removeItem(getProjectPermissionsStorageKey(null));
+    }
   };
 
   const handleMicToggle = () => {
@@ -401,12 +510,13 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
   }, []);
 
   const handleLoadChat = async (id: string) => {
-    const { data } = await supabase.from("projects").select("id, conversations").eq("id", id).single();
+    const { data } = await supabase.from("projects").select("id, conversations, files").eq("id", id).single();
     if (data?.conversations && Array.isArray(data.conversations)) {
       setMessages((data.conversations as any[]).map((m: any) => ({
         id: crypto.randomUUID(), role: m.role, content: m.content,
       })));
       setCurrentProjectId(data.id);
+      setCurrentProjectFiles(Array.isArray(data.files) ? (data.files as { name: string; content: string; language: string }[]) : []);
     }
     setShowHistory(false);
   };
@@ -566,6 +676,8 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
                   onRetry={msg.role === "assistant" && msg.id !== "streaming" ? handleRetry : undefined}
                   isPinned={pinnedIds.has(msg.id)}
                   onTogglePin={() => handleTogglePin(msg.id)}
+                  approvedActions={approvedActions}
+                  onApproveAction={handleApproveAction}
                 />
               </div>
             ))}

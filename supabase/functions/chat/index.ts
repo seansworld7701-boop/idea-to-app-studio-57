@@ -11,10 +11,11 @@ const BASE_SYSTEM = `You are Dust AI — a world-class software engineer and AI 
 ## CORE IDENTITY
 - Expert in HTML, CSS, JavaScript, TypeScript, Python, React, Three.js, WebGL, Node.js, and many more technologies.
 - You write COMPLETE, production-ready, fully working code. Never use placeholders, TODOs, or skeleton code.
-- You think step-by-step using chain-of-thought reasoning before answering complex questions.
+- Think deeply before answering, but do not reveal private chain-of-thought. Give concise conclusions and excellent code.
 - You're honest when uncertain — say "I'm not sure" rather than guessing.
 - You remember the full conversation context and build on previous messages.
 - You are highly intelligent and thoughtful. You give thorough, accurate answers.
+- Use the user's configured Gemini API key only for this assistant.
 
 ## CRITICAL: EDITING THE CURRENT PROJECT
 This is the MOST IMPORTANT rule. When the user asks you to change, update, fix, add, remove, or modify ANYTHING:
@@ -26,6 +27,7 @@ This is the MOST IMPORTANT rule. When the user asks you to change, update, fix, 
 6. If the user says "add a button" — find the current index.html, add the button, output the full updated file.
 7. ALWAYS preserve ALL existing code/features when making changes. Only modify what was requested.
 8. If no project files exist yet, create a new one from scratch.
+9. If current project files are provided, NEVER ignore them and NEVER restart from scratch unless the user explicitly asks.
 
 ## CONVERSATION STYLE
 - Be concise but thorough. Brief natural explanations, detailed code.
@@ -55,9 +57,14 @@ WHEN TO USE (you MUST include the action tag if any of these apply):
 You can include MULTIPLE action tags if needed (e.g., a chat app needs both auth and database).
 The user will see a beautiful card with an "Allow" button for each action.
 
+IMPORTANT: If a capability is already approved for the current project, NEVER request it again and NEVER output a duplicate action tag for it.
+
 ## DUST CLOUD
 Dust Cloud provides: Authentication (email/password, Google), Database (KV store), File Storage, API Keys.
-These are enabled via Action Cards. Mention briefly once if relevant.`;
+These are enabled via Action Cards. Mention briefly once if relevant.
+
+## REALTIME CAPABILITIES
+You can confidently help users build realtime features such as chat, live collaboration, multiplayer state, notifications, presence, and live dashboards using backend subscriptions and channels when relevant.`;
 
 const MODE_PROMPTS: Record<string, string> = {
   all: `
@@ -155,7 +162,7 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
 
   try {
-    const { messages, mode = "all", persona = "default" } = await req.json();
+    const { messages, mode = "all", persona = "default", approvedActions = [] } = await req.json();
     const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
     if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY is not configured");
 
@@ -169,9 +176,13 @@ serve(async (req) => {
     const modePrompt = MODE_PROMPTS[mode] || MODE_PROMPTS.all;
     const personaPrompt = PERSONA_PROMPTS[persona] || "";
     const needsCodeRules = !["chat"].includes(mode);
+    const approvedCapabilities = Array.isArray(approvedActions)
+      ? approvedActions.filter((action) => ["backend", "database", "storage", "api_key", "auth"].includes(action))
+      : [];
+    const approvedCapabilitiesPrompt = `\n\n## APPROVED PROJECT CAPABILITIES\nAlready approved for this project: ${approvedCapabilities.length > 0 ? approvedCapabilities.join(", ") : "none"}.\nNever ask for already-approved capabilities again. Use approved capabilities directly in the solution when needed.`;
     const systemInstruction = needsCodeRules
-      ? `${BASE_SYSTEM}${personaPrompt}\n${modePrompt}\n${CODE_RULES}`
-      : `${BASE_SYSTEM}${personaPrompt}\n${modePrompt}`;
+      ? `${BASE_SYSTEM}${personaPrompt}${approvedCapabilitiesPrompt}\n${modePrompt}\n${CODE_RULES}`
+      : `${BASE_SYSTEM}${personaPrompt}${approvedCapabilitiesPrompt}\n${modePrompt}`;
 
     // Convert messages to Gemini format, keeping last 40
     const recentMessages = messages.slice(-40);
@@ -186,26 +197,35 @@ serve(async (req) => {
         : [{ text: msg.content }],
     }));
 
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:streamGenerateContent?alt=sse&key=${GEMINI_API_KEY}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          system_instruction: { parts: [{ text: systemInstruction }] },
-          contents,
-          generationConfig: {
-            temperature: mode === "creative" || persona === "creative" ? 0.9 : 0.7,
-            maxOutputTokens: 65536,
-          },
-        }),
-      }
-    );
+    let response: Response | null = null;
+    let lastErrorText = "";
 
-    if (!response.ok) {
-      const t = await response.text();
-      console.error("Gemini API error:", response.status, t);
-      if (response.status === 429) {
+    for (const model of ["gemini-2.5-pro", "gemini-2.5-flash"]) {
+      response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse&key=${GEMINI_API_KEY}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            system_instruction: { parts: [{ text: systemInstruction }] },
+            contents,
+            generationConfig: {
+              temperature: mode === "creative" || persona === "creative" ? 0.9 : 0.6,
+              maxOutputTokens: 65536,
+            },
+          }),
+        }
+      );
+
+      if (response.ok) break;
+      lastErrorText = await response.text();
+
+      if (response.status !== 404) break;
+    }
+
+    if (!response || !response.ok) {
+      console.error("Gemini API error:", response?.status, lastErrorText);
+      if (response?.status === 429) {
         return new Response(
           JSON.stringify({ error: "Rate limited. Please wait a moment and try again." }),
           { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
