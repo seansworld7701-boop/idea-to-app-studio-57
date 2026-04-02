@@ -63,30 +63,36 @@ const CollabPanel = ({ projectId, projectTitle, onClose }: CollabPanelProps) => 
 
     setAdding(true);
     try {
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("user_id")
-        .eq("email", email)
-        .single();
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData.session?.access_token;
 
-      if (!profile) {
-        toast({ title: "User not found", description: "They need to sign up on Dust AI first", variant: "destructive" });
+      if (!accessToken) {
+        toast({ title: "Sign in required", description: "Please sign in again to manage collaborators.", variant: "destructive" });
         setAdding(false);
         return;
       }
 
-      const { error } = await supabase.from("project_collaborators").insert({
-        project_id: projectId,
-        user_id: profile.user_id,
-        email,
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/add-collaborator`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+        },
+        body: JSON.stringify({
+          projectId,
+          email,
+        }),
       });
 
-      if (error) {
-        if (error.code === "23505") {
-          toast({ title: "Already a collaborator", variant: "destructive" });
-        } else {
-          throw error;
-        }
+      const payload = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        toast({
+          title: "Could not add collaborator",
+          description: typeof payload.error === "string" ? payload.error : "Failed to add collaborator",
+          variant: "destructive",
+        });
       } else {
         toast({ title: "Collaborator added!", description: `${email} can now access this project` });
         setEmailInput("");

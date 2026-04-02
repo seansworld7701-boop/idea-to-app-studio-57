@@ -4,7 +4,7 @@ import { useState } from "react";
 import ReactMarkdown from "react-markdown";
 import ArtifactCard from "../ArtifactCard";
 import { parseAIResponse } from "@/lib/ai-stream";
-import ActionCard, { detectActionRequests, stripActionTags } from "./ActionCard";
+import ActionCard, { detectActionRequests, stripActionTags, type ActionType } from "./ActionCard";
 
 interface Message {
   id: string;
@@ -22,9 +22,11 @@ interface MessageBubbleProps {
   onRetry?: () => void;
   isPinned?: boolean;
   onTogglePin?: () => void;
+  approvedActions?: Partial<Record<ActionType, true>>;
+  onApproveAction?: (type: ActionType) => void;
 }
 
-const MessageBubble = ({ message, isLoggedIn, onOpenPreview, onRetry, isPinned, onTogglePin }: MessageBubbleProps) => {
+const MessageBubble = ({ message, isLoggedIn, onOpenPreview, onRetry, isPinned, onTogglePin, approvedActions, onApproveAction }: MessageBubbleProps) => {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async () => {
@@ -66,6 +68,7 @@ const MessageBubble = ({ message, isLoggedIn, onOpenPreview, onRetry, isPinned, 
 
   // Assistant message
   const actionRequests = detectActionRequests(message.content);
+  const visibleActionRequests = actionRequests.filter((action) => !approvedActions?.[action.type]);
   const cleanContent = stripActionTags(message.content);
   const { explanation, files } = parseAIResponse(cleanContent);
 
@@ -78,14 +81,14 @@ const MessageBubble = ({ message, isLoggedIn, onOpenPreview, onRetry, isPinned, 
       )}
 
       {/* Action cards */}
-      {actionRequests.map((action, i) => (
+      {visibleActionRequests.map((action, i) => (
         <ActionCard
           key={`${action.type}-${i}`}
           type={action.type}
           title={action.title}
           description={action.description}
           onAllow={() => {
-            // Action acknowledged - the AI already handles the logic
+            onApproveAction?.(action.type);
           }}
         />
       ))}
