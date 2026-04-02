@@ -7,6 +7,7 @@ import { AuthProvider } from "@/hooks/useAuth";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import MaintenanceMode from "@/components/MaintenanceMode";
 import RouteGuard from "@/components/RouteGuard";
+import { SpeedInsights } from "@vercel/speed-insights/react";
 
 const MAINTENANCE_MODE = false;
 import BottomNav from "@/components/BottomNav";
@@ -58,6 +59,7 @@ const App = () => {
                 <BottomNav />
               </div>
             </BrowserRouter>
+            <SpeedInsights />
           </TooltipProvider>
         </AuthProvider>
       </QueryClientProvider>
