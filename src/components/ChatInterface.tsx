@@ -59,7 +59,7 @@ const ACTION_TYPES: ActionType[] = ["backend", "database", "storage", "api_key",
 
 const getProjectPermissionsStorageKey = (projectId?: string | null) => `dust-project-permissions:${projectId ?? "draft"}`;
 
-const readApprovedActions = (projectId?: string | null): Record<ActionType, true> => {
+const readApprovedActions = (projectId?: string | null): Partial<Record<ActionType, true>> => {
   if (typeof window === "undefined") return {};
 
   try {
@@ -70,13 +70,13 @@ const readApprovedActions = (projectId?: string | null): Record<ActionType, true
     return ACTION_TYPES.reduce((acc, type) => {
       if (parsed[type] === true) acc[type] = true;
       return acc;
-    }, {} as Record<ActionType, true>);
+    }, {} as Partial<Record<ActionType, true>>);
   } catch {
     return {};
   }
 };
 
-const writeApprovedActions = (projectId: string | null | undefined, actions: Record<ActionType, true>) => {
+const writeApprovedActions = (projectId: string | null | undefined, actions: Partial<Record<ActionType, true>>) => {
   if (typeof window === "undefined") return;
   window.localStorage.setItem(getProjectPermissionsStorageKey(projectId), JSON.stringify(actions));
 };
@@ -108,7 +108,7 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
   const [pinnedIds, setPinnedIds] = useState<Set<string>>(new Set());
   const [showDiff, setShowDiff] = useState(false);
   const [previousFiles, setPreviousFiles] = useState<{ name: string; content: string; language: string }[]>([]);
-  const [approvedActions, setApprovedActions] = useState<Record<ActionType, true>>(() => readApprovedActions(projectId || null));
+  const [approvedActions, setApprovedActions] = useState<Partial<Record<ActionType, true>>>(() => readApprovedActions(projectId || null));
   const recognitionRef = useRef<any>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messageRefs = useRef<Map<string, HTMLDivElement>>(new Map());
