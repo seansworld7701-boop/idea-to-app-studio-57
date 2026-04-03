@@ -65,7 +65,7 @@ const BuildPage = () => {
               }))
             );
             setLoadedProjectId(data.id);
-            setLoadedProjectFiles(Array.isArray(data.files) ? (data.files as ProjectFile[]) : []);
+setLoadedProjectFiles(Array.isArray(data.files) ? (data.files as unknown as ProjectFile[]) : []);
           }
         } else if (!initialPrompt) {
           // Load the most recent project's conversation
