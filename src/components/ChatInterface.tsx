@@ -108,7 +108,7 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
   const [pinnedIds, setPinnedIds] = useState<Set<string>>(new Set());
   const [showDiff, setShowDiff] = useState(false);
   const [previousFiles, setPreviousFiles] = useState<{ name: string; content: string; language: string }[]>([]);
-  const [approvedActions, setApprovedActions] = useState<Record<ActionType, true>>(() => readApprovedActions(projectId || null));
+  const [approvedActions, setApprovedActions] = useState<Partial<Record<ActionType, true>>>(() => readApprovedActions(projectId || null));
   const recognitionRef = useRef<any>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messageRefs = useRef<Map<string, HTMLDivElement>>(new Map());
