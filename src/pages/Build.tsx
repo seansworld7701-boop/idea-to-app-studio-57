@@ -86,7 +86,7 @@ setLoadedProjectFiles(Array.isArray(data.files) ? (data.files as unknown as Proj
               }))
             );
             setLoadedProjectId(data.id);
-            setLoadedProjectFiles(Array.isArray(data.files) ? (data.files as ProjectFile[]) : []);
+            setLoadedProjectFiles(Array.isArray(data.files) ? (data.files as unknown as ProjectFile[]) : []);
           }
         }
       } catch {
