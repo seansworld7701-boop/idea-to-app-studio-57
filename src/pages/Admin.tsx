@@ -231,7 +231,7 @@ const AdminPage = () => {
 
           {activeTab === "roles" && (
             <>
-              {filtered(roles).map(role => (
+              {roles.filter(r => !search || r.user_id.includes(search.toLowerCase()) || r.role.includes(search.toLowerCase())).map(role => (
                 <div key={role.id} className="rounded-lg border border-border bg-background p-3 flex items-center justify-between">
                   <div>
                     <p className="text-sm text-foreground">{role.user_id.slice(0, 12)}...</p>
