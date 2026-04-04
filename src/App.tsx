@@ -21,6 +21,7 @@ import AuthCallback from "@/pages/AuthCallback";
 import SharedProject from "@/pages/SharedProject";
 import HostedApp from "@/pages/HostedApp";
 import CloudPage from "@/pages/Cloud";
+import AdminPage from "@/pages/Admin";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -46,6 +47,7 @@ const App = () => {
                     <Route path="/projects" element={<RouteGuard><ProjectsPage /></RouteGuard>} />
                     <Route path="/templates" element={<TemplatesPage />} />
                     <Route path="/cloud" element={<RouteGuard><CloudPage /></RouteGuard>} />
+                    <Route path="/admin" element={<RouteGuard><AdminPage /></RouteGuard>} />
                     <Route path="/account" element={<RouteGuard><AccountPage /></RouteGuard>} />
                     <Route path="/auth" element={<RouteGuard requireAuth={false} redirectTo="/build"><AuthPage /></RouteGuard>} />
                     <Route path="/auth/callback" element={<AuthCallback />} />
