@@ -72,7 +72,7 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
   const [pinnedIds, setPinnedIds] = useState<Set<string>>(new Set());
   const [showDiff, setShowDiff] = useState(false);
   const [previousFiles, setPreviousFiles] = useState<{ name: string; content: string; language: string }[]>([]);
-  const [approvedActions, setApprovedActions] = useState<Partial<Record<ActionType, true>>>(() => readApprovedActions(projectId || null));
+  
   const recognitionRef = useRef<any>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messageRefs = useRef<Map<string, HTMLDivElement>>(new Map());
@@ -112,9 +112,7 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
     }
   }, [initialPrompt]);
 
-  useEffect(() => {
-    setApprovedActions(readApprovedActions(currentProjectId));
-  }, [currentProjectId]);
+  
 
   const loadChatHistory = useCallback(async () => {
     if (!user) return;
@@ -189,20 +187,7 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
     return () => { supabase.removeChannel(channel); };
   }, [currentProjectId]);
 
-  const handleApproveAction = useCallback((type: ActionType) => {
-    setApprovedActions((prev) => {
-      if (prev[type]) return prev;
-
-      const next = { ...prev, [type]: true };
-      writeApprovedActions(currentProjectId, next);
-      return next;
-    });
-
-    toast({
-      title: "Capability enabled",
-      description: "The AI will keep using this for the current project without asking again.",
-    });
-  }, [currentProjectId]);
+  
 
   const saveProject = useCallback(async (allMessages: Message[], prompt: string, assistantContent: string) => {
     if (!user) return;
@@ -234,7 +219,7 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
           conversations: conversations as any,
         }).select("id").single();
         if (data) {
-          migrateApprovedActions(null, data.id);
+          
           setCurrentProjectId(data.id);
         }
       }
@@ -345,12 +330,8 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
       if (latestFiles.length > 0 && history.length > 0) {
         const lastMsg = history[history.length - 1];
         if (lastMsg.role === "user" && typeof lastMsg.content === "string") {
-          const approvedCapabilities = Object.keys(approvedActions);
-          const capabilitiesPrefix = approvedCapabilities.length > 0
-            ? `[APPROVED PROJECT CAPABILITIES]\n${approvedCapabilities.join(", ")}\n\n`
-            : "";
           const contextPrefix = `[CURRENT PROJECT FILES for reference — apply changes to these]\n${latestFiles.map(f => `===FILE: ${f.name}===\n${f.content}\n===END_FILE===`).join("\n\n")}\n\n[USER REQUEST]\n`;
-          lastMsg.content = capabilitiesPrefix + contextPrefix + lastMsg.content;
+          lastMsg.content = contextPrefix + lastMsg.content;
         }
       }
 
@@ -365,7 +346,6 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
         messages: history,
         mode,
         persona,
-        approvedActions: Object.keys(approvedActions) as ActionType[],
         onDelta: (chunk) => {
           assistantSoFar += chunk;
           setMessages((prev) => {
@@ -416,10 +396,6 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
     setPinnedIds(new Set());
     setPreviousFiles([]);
     setShowDiff(false);
-    setApprovedActions({});
-    if (typeof window !== "undefined") {
-      window.localStorage.removeItem(getProjectPermissionsStorageKey(null));
-    }
   };
 
   const handleMicToggle = () => {
@@ -640,8 +616,6 @@ const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessage
                   onRetry={msg.role === "assistant" && msg.id !== "streaming" ? handleRetry : undefined}
                   isPinned={pinnedIds.has(msg.id)}
                   onTogglePin={() => handleTogglePin(msg.id)}
-                  approvedActions={approvedActions}
-                  onApproveAction={handleApproveAction}
                 />
               </div>
             ))}
