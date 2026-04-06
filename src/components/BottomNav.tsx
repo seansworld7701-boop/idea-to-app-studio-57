@@ -1,12 +1,11 @@
 import { NavLink, useLocation } from "react-router-dom";
-import { Home, MessageSquare, FolderOpen, Cloud, User } from "lucide-react";
+import { Home, MessageSquare, FolderOpen, User } from "lucide-react";
 import { motion } from "framer-motion";
 
 const navItems = [
   { path: "/", icon: Home, label: "Home" },
   { path: "/build", icon: MessageSquare, label: "Build" },
   { path: "/projects", icon: FolderOpen, label: "Projects" },
-  { path: "/cloud", icon: Cloud, label: "Cloud" },
   { path: "/account", icon: User, label: "Account" },
 ];
 
