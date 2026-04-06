@@ -13,7 +13,6 @@ export async function streamChat({
   messages,
   mode = "all",
   persona = "default",
-  approvedActions = [],
   onDelta,
   onDone,
   onError,
@@ -21,7 +20,6 @@ export async function streamChat({
   messages: Msg[];
   mode?: ChatMode;
   persona?: PersonaId;
-  approvedActions?: string[];
   onDelta: (text: string) => void;
   onDone: () => void;
   onError: (error: string) => void;
@@ -34,7 +32,7 @@ export async function streamChat({
         "Content-Type": "application/json",
         Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
       },
-      body: JSON.stringify({ messages, mode, persona, approvedActions }),
+      body: JSON.stringify({ messages, mode, persona }),
     });
   } catch {
     onError("Network error. Please check your connection and try again.");
