@@ -55,42 +55,6 @@ interface ChatInterfaceProps {
   initialProjectFiles?: { name: string; content: string; language: string }[];
 }
 
-const ACTION_TYPES: ActionType[] = ["backend", "database", "storage", "api_key", "auth"];
-
-const getProjectPermissionsStorageKey = (projectId?: string | null) => `dust-project-permissions:${projectId ?? "draft"}`;
-
-const readApprovedActions = (projectId?: string | null): Partial<Record<ActionType, true>> => {
-  if (typeof window === "undefined") return {};
-
-  try {
-    const raw = window.localStorage.getItem(getProjectPermissionsStorageKey(projectId));
-    if (!raw) return {};
-
-    const parsed = JSON.parse(raw) as Record<string, unknown>;
-    return ACTION_TYPES.reduce((acc, type) => {
-      if (parsed[type] === true) acc[type] = true;
-      return acc;
-    }, {} as Partial<Record<ActionType, true>>);
-  } catch {
-    return {};
-  }
-};
-
-const writeApprovedActions = (projectId: string | null | undefined, actions: Partial<Record<ActionType, true>>) => {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(getProjectPermissionsStorageKey(projectId), JSON.stringify(actions));
-};
-
-const migrateApprovedActions = (fromProjectId: string | null | undefined, toProjectId: string) => {
-  if (typeof window === "undefined") return;
-
-  const next = readApprovedActions(fromProjectId);
-  if (Object.keys(next).length === 0) return;
-
-  writeApprovedActions(toProjectId, next);
-  window.localStorage.removeItem(getProjectPermissionsStorageKey(fromProjectId));
-};
-
 const ChatInterface = ({ onOpenPreview, initialPrompt, projectId, initialMessages, initialProjectFiles }: ChatInterfaceProps) => {
   const [messages, setMessages] = useState<Message[]>(initialMessages || []);
   const [input, setInput] = useState("");
